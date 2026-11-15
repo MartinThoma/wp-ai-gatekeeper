@@ -1,0 +1,21 @@
+{
+	"name": "wp-ai-gatekeeper/wp-ai-gatekeeper",
+	"description": "Enterprise-safe AI governance for WordPress with strict permission guardrails, human approval gates, and GitHub PR-style change suggestions.",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=7.4"
+	},
+	"require-dev": {
+		"phpunit/phpunit": "^9.6",
+		"yoast/phpunit-polyfills": "^2.0"
+	},
+	"scripts": {
+		"test:verify": "python3 tests/test-plugin-verification.py",
+		"test:unit": "phpunit"
+	},
+	"config": {
+		"allow-plugins": true,
+		"sort-packages": true
+	}
+}

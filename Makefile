@@ -1,0 +1,32 @@
+.PHONY: help up down restart reset logs wp verify lint test shell
+
+help: ## Show available Make commands
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
+
+up: ## Start WordPress + MariaDB in Docker and activate WP AI Gatekeeper
+	docker compose up -d --remove-orphans
+
+down: ## Stop Docker containers
+	docker compose down
+
+restart: ## Recreate containers and re-run WP-CLI setup/activation
+	docker compose up -d --force-recreate --remove-orphans
+
+reset: ## Stop containers, wipe database/WordPress volumes, and start fresh
+	docker compose down -v --remove-orphans
+	docker compose up -d
+
+logs: ## Tail Docker container logs
+	docker compose logs -f
+
+wp: ## Run a WP-CLI command inside the container (e.g. make wp ARGS="plugin list")
+	docker compose run --rm wpcli wp --path=/var/www/html $(ARGS)
+
+verify: ## Run Python static & structural verification checks
+	python3 tests/test-plugin-verification.py
+
+lint: ## Run PHP syntax linter inside the WordPress Docker container
+	docker compose exec wordpress sh -c 'find /var/www/html/wp-content/plugins/wp-ai-gatekeeper -name "*.php" -not -path "*/vendor/*" -print0 | xargs -0 -n1 php -l'
+
+shell: ## Open a bash shell inside the WordPress container
+	docker compose exec wordpress bash
