@@ -147,61 +147,30 @@
 	}
 
 	/**
-	 * Sync the live Classic Editor or Gutenberg editor content if open on the page.
+	 * Describe the editor open on this page for the given post, if any.
 	 *
-	 * @param {HTMLElement} card Suggestion card element.
+	 * Merging changes the saved article. An editor holding unsaved changes would
+	 * write its older version back on the next save and undo the merge, so the
+	 * caller refuses to merge in that case and reloads the editor afterwards.
+	 *
+	 * @param {string|number} postId Post the suggestion belongs to.
+	 * @return {{dirty: boolean}|null} Editor state, or null when no editor for this post is open.
 	 */
-	function syncEditorContentOnMerge( card ) {
-		const targetField = card.dataset.targetField || 'post_content';
-		const originalText = card.dataset.originalText || '';
-		const suggestedText = card.dataset.suggestedText || '';
-
-		if ( ! originalText ) {
-			return;
+	function editorForPost( postId ) {
+		const id = Number( postId );
+		const data = window.wp && window.wp.data;
+		const blockEditor = data && data.select && data.select( 'core/editor' );
+		if ( blockEditor && typeof blockEditor.getCurrentPostId === 'function' && Number( blockEditor.getCurrentPostId() ) === id ) {
+			return { dirty: !! blockEditor.isEditedPostDirty() };
 		}
 
-		// Sync Gutenberg block editor if active.
-		if ( window.wp && window.wp.data && window.wp.data.select && window.wp.data.dispatch ) {
-			const editorSelect = window.wp.data.select( 'core/editor' );
-			const editorDispatch = window.wp.data.dispatch( 'core/editor' );
-			if ( editorSelect && editorDispatch ) {
-				if ( targetField === 'post_title' ) {
-					const currentTitle = editorSelect.getEditedPostAttribute( 'title' ) || '';
-					if ( currentTitle.includes( originalText ) ) {
-						editorDispatch.editPost( {
-							title: currentTitle.replace( originalText, suggestedText ),
-						} );
-					}
-				} else if ( targetField === 'post_excerpt' ) {
-					const currentExcerpt = editorSelect.getEditedPostAttribute( 'excerpt' ) || '';
-					if ( currentExcerpt.includes( originalText ) ) {
-						editorDispatch.editPost( {
-							excerpt: currentExcerpt.replace( originalText, suggestedText ),
-						} );
-					}
-				} else {
-					const currentContent = editorSelect.getEditedPostAttribute( 'content' ) || '';
-					if ( currentContent.includes( originalText ) ) {
-						editorDispatch.editPost( {
-							content: currentContent.replace( originalText, suggestedText ),
-						} );
-					}
-				}
-			}
+		const classicId = document.getElementById( 'post_ID' );
+		if ( classicId && Number( classicId.value ) === id ) {
+			const server = window.wp && window.wp.autosave && window.wp.autosave.server;
+			return { dirty: !! ( server && typeof server.postChanged === 'function' && server.postChanged() ) };
 		}
 
-		// Sync Classic Editor textarea if present.
-		if ( targetField === 'post_content' ) {
-			const contentField = document.getElementById( 'content' );
-			if ( contentField && contentField.value.includes( originalText ) ) {
-				contentField.value = contentField.value.replace( originalText, suggestedText );
-			}
-		} else if ( targetField === 'post_title' ) {
-			const titleField = document.getElementById( 'title' );
-			if ( titleField && titleField.value.includes( originalText ) ) {
-				titleField.value = titleField.value.replace( originalText, suggestedText );
-			}
-		}
+		return null;
 	}
 
 	/**
@@ -338,6 +307,16 @@
 					return;
 				}
 
+				const editor = editorForPost( card.dataset.postId );
+				if ( editor && editor.dirty ) {
+					setCardFeedback(
+						card,
+						( config.i18n && config.i18n.saveBeforeMerge ) || 'Save your changes first, then merge.',
+						true
+					);
+					return;
+				}
+
 				const confirmText = ( config.i18n && config.i18n.confirmMerge ) ||
 					'Merge this suggestion into the article? Once merged, it cannot be changed anymore.';
 				if ( ! window.confirm( confirmText ) ) {
@@ -361,8 +340,13 @@
 						appendCommentToCard( card, updated.comments[ updated.comments.length - 1 ] );
 					}
 					updateCardState( card, updated );
-					syncEditorContentOnMerge( card );
-					setCardFeedback( card, 'Suggestion merged and permanently locked.', false );
+					if ( editor ) {
+						// Show exactly what the server merged; the editor had no unsaved changes.
+						setCardFeedback( card, ( config.i18n && config.i18n.mergedReloading ) || 'Merged. Reloading the editor…', false );
+						window.location.reload();
+					} else {
+						setCardFeedback( card, 'Suggestion merged and permanently locked.', false );
+					}
 				} catch ( err ) {
 					setCardFeedback( card, err.message, true );
 					mergeBtn.disabled = false;

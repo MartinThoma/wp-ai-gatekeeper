@@ -292,6 +292,7 @@ class Test_Admin extends WP_AI_Gatekeeper_TestCase {
 			}
 		);
 		$this->assertStringContainsString( 'wpai-btn-merge', $card );
+		$this->assertStringContainsString( 'data-post-id="' . $post_id . '"', $card, 'The editor-sync check needs the post ID.' );
 		$this->assertStringContainsString( 'wpai-btn-preview', $card );
 		$this->assertStringContainsString( '<p>Second paragraph</p>', $card, 'Comments keep their paragraphs.' );
 

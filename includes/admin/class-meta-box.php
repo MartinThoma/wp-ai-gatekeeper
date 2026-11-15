@@ -152,6 +152,8 @@ class WP_AI_Gatekeeper_Meta_Box {
 				'showArticle'        => __( 'Show in full article', 'wp-ai-gatekeeper' ),
 				'hideArticle'        => __( 'Hide full article', 'wp-ai-gatekeeper' ),
 				'loadingArticle'     => __( 'Loading article…', 'wp-ai-gatekeeper' ),
+				'saveBeforeMerge'    => __( 'You have unsaved changes. Save the post first, then merge: merging changes the saved article, and saving your older version afterwards would undo the merge.', 'wp-ai-gatekeeper' ),
+				'mergedReloading'    => __( 'Merged. Reloading the editor to show the updated article…', 'wp-ai-gatekeeper' ),
 			),
 		);
 	}
@@ -254,6 +256,7 @@ class WP_AI_Gatekeeper_Meta_Box {
 		<div class="wpai-suggestion-card wpai-status-<?php echo esc_attr( $status ); ?>"
 			id="wpai-suggestion-<?php echo esc_attr( $suggestion['id'] ); ?>"
 			data-suggestion-id="<?php echo esc_attr( $suggestion['id'] ); ?>"
+			data-post-id="<?php echo esc_attr( $suggestion['post_id'] ); ?>"
 			data-status="<?php echo esc_attr( $status ); ?>"
 			data-target-field="<?php echo esc_attr( $suggestion['target_field'] ); ?>"
 			data-original-text="<?php echo esc_attr( $suggestion['original_text'] ); ?>"

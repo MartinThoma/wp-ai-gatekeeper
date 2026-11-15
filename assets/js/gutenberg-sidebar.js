@@ -17,8 +17,9 @@
 	const { PluginSidebar, PluginSidebarMoreMenuItem } = editPostModule;
 	const { createElement: el, useState, useEffect, Fragment } = wp.element;
 	const { PanelBody, Button, TextareaControl, Notice, Spinner, Badge } = wp.components;
-	const { useSelect, useDispatch } = wp.data;
+	const { useSelect } = wp.data;
 	const apiFetch = wp.apiFetch;
+	const i18n = ( window.wpAIGatekeeper && window.wpAIGatekeeper.i18n ) || {};
 
 	if ( ! PluginSidebar ) {
 		return;
@@ -48,10 +49,11 @@
 	 * @return {Object} React element.
 	 */
 	function SidebarSuggestionCard( props ) {
-		const { suggestion, onUpdated, onMergedContent } = props;
+		const { suggestion, onUpdated, isEditorDirty } = props;
 		const [ replyText, setReplyText ] = useState( '' );
 		const [ busy, setBusy ] = useState( false );
 		const [ error, setError ] = useState( '' );
+		const [ notice, setNotice ] = useState( '' );
 
 		const isLocked = suggestion.is_locked || suggestion.status === 'merged';
 
@@ -77,20 +79,28 @@
 		}
 
 		async function handleMerge() {
+			// Merging changes the saved article; saving unsaved (older) editor
+			// content afterwards would undo it.
+			if ( isEditorDirty ) {
+				setError( i18n.saveBeforeMerge || 'Save your changes first, then merge.' );
+				return;
+			}
+			if ( ! window.confirm( i18n.confirmMerge || 'Merge this suggestion into the article?' ) ) {
+				return;
+			}
 			setBusy( true );
 			setError( '' );
 			try {
-				const updated = await apiFetch( {
+				await apiFetch( {
 					path: '/ai-gatekeeper/v1/suggestions/' + suggestion.id + '/merge',
 					method: 'POST',
 					data: { comment: replyText },
 				} );
-				setReplyText( '' );
-				onMergedContent( updated );
-				onUpdated();
+				setNotice( i18n.mergedReloading || 'Merged. Reloading the editor…' );
+				// Reload so the editor shows exactly what the server merged.
+				window.location.reload();
 			} catch ( err ) {
 				setError( err.message || 'Failed to merge suggestion.' );
-			} finally {
 				setBusy( false );
 			}
 		}
@@ -153,6 +163,7 @@
 				} )
 			),
 			error ? el( Notice, { status: 'error', isDismissible: false }, error ) : null,
+			notice ? el( Notice, { status: 'success', isDismissible: false }, notice ) : null,
 			isLocked
 				? el(
 					'div',
@@ -222,11 +233,9 @@
 			return select( 'core/editor' ).getCurrentPostId();
 		}, [] );
 
-		const editedContent = useSelect( function ( select ) {
-			return select( 'core/editor' ).getEditedPostAttribute( 'content' ) || '';
+		const isEditorDirty = useSelect( function ( select ) {
+			return select( 'core/editor' ).isEditedPostDirty();
 		}, [] );
-
-		const { editPost } = useDispatch( 'core/editor' );
 
 		const [ suggestions, setSuggestions ] = useState( [] );
 		const [ loading, setLoading ] = useState( false );
@@ -253,20 +262,6 @@
 		useEffect( function () {
 			loadSuggestions();
 		}, [ postId ] );
-
-		function handleMergedContent( mergedSuggestion ) {
-			if (
-				mergedSuggestion.target_field === 'post_content' &&
-				editedContent.includes( mergedSuggestion.original_text )
-			) {
-				editPost( {
-					content: editedContent.replace(
-						mergedSuggestion.original_text,
-						mergedSuggestion.suggested_text
-					),
-				} );
-			}
-		}
 
 		return el(
 			Fragment,
@@ -304,7 +299,7 @@
 								key: item.id,
 								suggestion: item,
 								onUpdated: loadSuggestions,
-								onMergedContent: handleMergedContent,
+								isEditorDirty: isEditorDirty,
 							} );
 						} )
 				)

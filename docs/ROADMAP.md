@@ -18,19 +18,19 @@ already checks `read_post`; the list does not.
   `edit_others_posts`), and keep `total`/`counts` consistent with the filtered result.
 - Done when: a test shows a Contributor cannot see suggestions on another author's draft.
 
-### 2. Editor sync after merge can revert or corrupt the merge
-After a merge, `syncEditorContentOnMerge` (`assets/js/admin-suggestions.js`) and
-`handleMergedContent` (`assets/js/gutenberg-sidebar.js`) replace the *first* occurrence of
-`original_text` in the open editor, while the server uses `context_before`/`context_after` to
-pick the occurrence. If they differ, or the text isn't found, the next Save overwrites the
-merged post with stale editor content.
-- Use `updated_post` from the merge response to set the editor field (or reload the post /
-  prompt the user) instead of client-side string replacement.
-
-### 3. Password-protected posts leak via the plugin REST API
+### 2. Password-protected posts leak via the plugin REST API
 `read_post` allows them and `format_post` (`includes/class-rest-controller.php`) returns
 `content_raw` / `content_rendered`, so any logged-in Subscriber can read protected content.
 - Withhold content for password-protected posts unless the caller can `edit_post`.
+
+### 3. A stale editor in another tab can still undo a merge
+Merging from inside the editor is now safe (it refuses while there are unsaved changes and
+reloads afterwards). But if the same article is open in another tab or window, or by the same
+user on another device, that editor does not know about the merge, and saving it writes the
+older content back. WordPress's post lock only warns when a *different* user is editing.
+- Options: have the plugin's scripts poll (or use Heartbeat) and warn "This article changed
+  since you opened it"; or reject REST saves whose base is older than the last merge (the block
+  editor sends no base version, so this needs a hidden field or meta).
 
 ## Low
 
