@@ -588,12 +588,55 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			$items[]      = self::hydrate_suggestion( $row, $row_comments );
 		}
 
-		$post_id = ! empty( $args['post_id'] ) ? absint( $args['post_id'] ) : 0;
-
 		return array(
 			'items'  => $items,
 			'total'  => $total,
-			'counts' => WP_AI_Gatekeeper_Database::get_status_counts( $post_id ),
+			'counts' => WP_AI_Gatekeeper_Database::get_status_counts( $args ),
+		);
+	}
+
+	/**
+	 * Whether a user may see the suggestions (and discussions) of a post.
+	 *
+	 * Humans need to be able to edit the post: the same people who may comment
+	 * on and merge suggestions. AI users may see suggestions on any post they
+	 * can read.
+	 *
+	 * @param int $user_id User ID.
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function can_view_post_suggestions( $user_id, $post_id ) {
+		if ( WP_AI_Gatekeeper_Auth::is_ai_user( $user_id ) ) {
+			return user_can( $user_id, 'read_post', $post_id );
+		}
+		return user_can( $user_id, 'edit_post', $post_id );
+	}
+
+	/**
+	 * IDs of posts whose suggestions a user may see, for list queries.
+	 *
+	 * @param int $user_id User ID.
+	 * @return int[]|null Null when unrestricted (AI users), else the allowed post IDs.
+	 */
+	public static function visible_post_ids( $user_id ) {
+		if ( WP_AI_Gatekeeper_Auth::is_ai_user( $user_id ) ) {
+			return null;
+		}
+
+		$post_ids = WP_AI_Gatekeeper_Database::get_suggestion_post_ids();
+		if ( empty( $post_ids ) ) {
+			return array();
+		}
+		_prime_post_caches( $post_ids, false, false );
+
+		return array_values(
+			array_filter(
+				$post_ids,
+				static function ( $post_id ) use ( $user_id ) {
+					return user_can( $user_id, 'edit_post', $post_id );
+				}
+			)
 		);
 	}
 

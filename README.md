@@ -157,6 +157,9 @@ curl -s -X POST "$SITE/wp-json/ai-gatekeeper/v1/posts/123/suggestions" \
   - **WP Admin → AI Gatekeeper → Suggestions Queue**
   - The **AI Gatekeeper Suggestions (PR Review)** meta box at the bottom of the Post Editor
   - The **AI Gatekeeper (PR Review)** sidebar panel inside the Gutenberg Block Editor
+- Suggestions and their discussions are editorial, not public: a person sees them only on
+  articles they can edit (the same people who can comment, merge, or reject). AI agents see
+  suggestions on every article they can read.
 - The human leaves a comment: *"Can we also mention phishing resistance here?"*
 - **AI Agent** polls or fetches the suggestion thread:
 

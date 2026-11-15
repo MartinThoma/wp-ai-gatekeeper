@@ -146,6 +146,7 @@ class WP_AI_Gatekeeper_Admin_Menu {
 
 		$query_args = array(
 			'per_page' => 100,
+			'post_ids' => WP_AI_Gatekeeper_Suggestion_Service::visible_post_ids( get_current_user_id() ),
 		);
 		if ( in_array( $status_filter, array( 'open', 'merged', 'rejected' ), true ) ) {
 			$query_args['status'] = $status_filter;

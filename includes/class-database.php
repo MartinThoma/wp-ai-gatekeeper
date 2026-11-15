@@ -199,6 +199,17 @@ class WP_AI_Gatekeeper_Database {
 			$params[]  = absint( $args['post_id'] );
 		}
 
+		// Visibility restriction: null/absent means unrestricted, an empty array matches nothing.
+		if ( isset( $args['post_ids'] ) && is_array( $args['post_ids'] ) ) {
+			$ids = array_values( array_filter( array_map( 'absint', $args['post_ids'] ) ) );
+			if ( empty( $ids ) ) {
+				$clauses[] = '1=0';
+			} else {
+				$clauses[] = 's.post_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')';
+				$params    = array_merge( $params, $ids );
+			}
+		}
+
 		if ( ! empty( $args['author_user_id'] ) ) {
 			$clauses[] = 's.author_user_id = %d';
 			$params[]  = absint( $args['author_user_id'] );
@@ -276,11 +287,11 @@ class WP_AI_Gatekeeper_Database {
 	/**
 	 * Returns summary counts by status for UI tabs and badges.
 	 *
-	 * @param int $post_id Optional post ID filter.
+	 * @param array $base_args Filters shared by all counts (post_id, post_ids).
 	 * @return array<string, int>
 	 */
-	public static function get_status_counts( $post_id = 0 ) {
-		$base_args = $post_id ? array( 'post_id' => absint( $post_id ) ) : array();
+	public static function get_status_counts( array $base_args = array() ) {
+		$base_args = array_intersect_key( $base_args, array_flip( array( 'post_id', 'post_ids' ) ) );
 
 		return array(
 			'open'           => self::count_suggestions( array_merge( $base_args, array( 'status' => 'open' ) ) ),
@@ -289,6 +300,19 @@ class WP_AI_Gatekeeper_Database {
 			'rejected'       => self::count_suggestions( array_merge( $base_args, array( 'status' => 'rejected' ) ) ),
 			'all'            => self::count_suggestions( array_merge( $base_args, array( 'status' => 'all' ) ) ),
 		);
+	}
+
+	/**
+	 * Returns the IDs of all posts that have suggestions.
+	 *
+	 * @return int[]
+	 */
+	public static function get_suggestion_post_ids() {
+		global $wpdb;
+
+		$table = self::get_suggestions_table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is $wpdb->prefix + constant; no user input.
+		return array_map( 'intval', $wpdb->get_col( "SELECT DISTINCT post_id FROM {$table}" ) );
 	}
 
 	/**

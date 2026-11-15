@@ -177,7 +177,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 				array(
 					'methods'             => WP_REST_Server::READABLE,
 					'callback'            => array( $this, 'get_post_suggestions' ),
-					'permission_callback' => array( $this, 'read_single_post_permissions_check' ),
+					'permission_callback' => array( $this, 'post_suggestions_permissions_check' ),
 					'args'                => array(
 						'status'         => array(
 							'type'    => 'string',
@@ -381,6 +381,30 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			return new WP_Error(
 				'rest_forbidden',
 				__( 'You do not have permission to read this article.', 'wp-ai-gatekeeper' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Checks permission to list a post's suggestions: humans must be able to edit
+	 * the post (suggestions and discussions are editorial, not public).
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return true|WP_Error
+	 */
+	public function post_suggestions_permissions_check( $request ) {
+		$readable = $this->read_single_post_permissions_check( $request );
+		if ( is_wp_error( $readable ) ) {
+			return $readable;
+		}
+
+		if ( ! WP_AI_Gatekeeper_Suggestion_Service::can_view_post_suggestions( get_current_user_id(), (int) $request['id'] ) ) {
+			return new WP_Error(
+				'rest_forbidden',
+				__( 'You do not have permission to view suggestions for this article.', 'wp-ai-gatekeeper' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -856,6 +880,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 		$result = WP_AI_Gatekeeper_Suggestion_Service::list_suggestions(
 			array(
 				'post_id'        => absint( $request->get_param( 'post_id' ) ),
+				'post_ids'       => WP_AI_Gatekeeper_Suggestion_Service::visible_post_ids( get_current_user_id() ),
 				'status'         => sanitize_key( (string) $request->get_param( 'status' ) ),
 				'needs_ai_reply' => (bool) $request->get_param( 'needs_ai_reply' ),
 				'limit'          => $per_page,
@@ -921,7 +946,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			return $result;
 		}
 
-		if ( ! WP_AI_Gatekeeper_Auth::is_ai_user() && ! current_user_can( 'read_post', (int) $result['post_id'] ) ) {
+		if ( ! WP_AI_Gatekeeper_Suggestion_Service::can_view_post_suggestions( get_current_user_id(), (int) $result['post_id'] ) ) {
 			return new WP_Error(
 				'rest_forbidden',
 				__( 'You do not have permission to view this suggestion.', 'wp-ai-gatekeeper' ),
@@ -949,8 +974,8 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			);
 		}
 
-		$can_read = WP_AI_Gatekeeper_Auth::is_ai_user() || current_user_can( 'read_post', $post->ID );
-		if ( ! $can_read || ( post_password_required( $post ) && ! current_user_can( 'edit_post', $post->ID ) ) ) {
+		$can_view = WP_AI_Gatekeeper_Suggestion_Service::can_view_post_suggestions( get_current_user_id(), $post->ID );
+		if ( ! $can_view || ( post_password_required( $post ) && ! current_user_can( 'edit_post', $post->ID ) ) ) {
 			return new WP_Error(
 				'rest_forbidden',
 				__( 'You do not have permission to view this article.', 'wp-ai-gatekeeper' ),
