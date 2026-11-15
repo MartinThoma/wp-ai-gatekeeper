@@ -29,8 +29,14 @@ services:
       WORDPRESS_DB_PASSWORD: wp
       WORDPRESS_DB_NAME: wordpress
       WORDPRESS_DEBUG: 1
+      # Dev only: serve the site under whatever host it is reached by
+      # (localhost, LAN IP, ...) instead of redirecting to localhost.
       WORDPRESS_CONFIG_EXTRA: |
         define( 'WP_ENVIRONMENT_TYPE', 'staging' );
+        if ( ! empty( $$_SERVER['HTTP_HOST'] ) ) {
+          define( 'WP_HOME', 'http://' . $$_SERVER['HTTP_HOST'] );
+          define( 'WP_SITEURL', 'http://' . $$_SERVER['HTTP_HOST'] );
+        }
     volumes:
       - wp_data:/var/www/html
       - .:/var/www/html/wp-content/plugins/wp-ai-gatekeeper
@@ -53,27 +59,22 @@ services:
     volumes:
       - wp_data:/var/www/html
       - .:/var/www/html/wp-content/plugins/wp-ai-gatekeeper
-    entrypoint: >
-      /bin/sh -c "
-        echo 'Waiting for WordPress files to be ready...';
-        until [ -f /var/www/html/wp-includes/version.php ]; do sleep 2; done;
-        until wp db check --path=/var/www/html >/dev/null 2>&1; do sleep 2; done;
-        wp config set WP_ENVIRONMENT_TYPE staging --type=constant --path=/var/www/html || true;
-        if ! wp core is-installed --path=/var/www/html; then
-          echo 'Installing WordPress and activating WP AI Gatekeeper...';
-          wp core install \
-            --path=/var/www/html \
-            --url=http://localhost:8080 \
-            --title='WP AI Gatekeeper Dev' \
-            --admin_user=admin \
-            --admin_password=admin \
-            --admin_email=admin@example.com \
-            --skip-email;
-        fi;
-        wp rewrite structure '/%postname%/' --hard --path=/var/www/html;
-        wp plugin activate wp-ai-gatekeeper --path=/var/www/html;
-        echo 'WordPress is ready at http://localhost:8080 (login: admin / admin)';
-      "
+    working_dir: /var/www/html
+    # Literal block, one command per line (`sh -e` stops on the first failure).
+    # `make wp ARGS=...` overrides the entrypoint to run single WP-CLI commands.
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        echo 'Waiting for WordPress files to be ready...'
+        until [ -f wp-includes/version.php ]; do sleep 2; done
+        # No DB wait loop: depends_on already waits for the db healthcheck.
+        if ! wp core is-installed 2>/dev/null; then
+          echo 'Installing WordPress...'
+          wp core install --url=http://localhost:8080 --title='WP AI Gatekeeper Dev' --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+        fi
+        wp rewrite structure '/%postname%/' --hard
+        wp plugin activate wp-ai-gatekeeper
+        echo 'WordPress is ready at http://localhost:8080 (login: admin / admin)'
 
   # --- PHPUnit test stack (only started via `make test`) ---
   testdb:

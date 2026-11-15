@@ -20,7 +20,7 @@ logs: ## Tail Docker container logs
 	docker compose logs -f
 
 wp: ## Run a WP-CLI command inside the container (e.g. make wp ARGS="plugin list")
-	docker compose run --rm wpcli wp --path=/var/www/html $(ARGS)
+	docker compose run --rm --entrypoint wp wpcli $(ARGS)
 
 verify: ## Run Python static & structural verification checks
 	python3 tests/test-plugin-verification.py
