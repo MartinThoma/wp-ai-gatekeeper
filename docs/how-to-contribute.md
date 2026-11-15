@@ -38,6 +38,7 @@ make logs                    # Tail container logs
 make wp ARGS="plugin list"   # Run any WP-CLI command against the dev site
 make shell                   # Open a shell in the WordPress container
 make test                    # Run the PHPUnit integration suite in Docker
+make coverage                # Same, with code coverage (coverage/index.html)
 make cs                      # Check WordPress Coding Standards
 make cs-fix                  # Auto-fix what phpcbf can
 make verify                  # Run the fast structural checks (Python 3)
@@ -56,6 +57,9 @@ make dist                    # Build dist/wp-ai-gatekeeper.zip from HEAD
   The first run builds a test image (PHP, `mysqli`, Composer dev dependencies, and the
   matching WordPress test suite) and starts a throwaway MariaDB on tmpfs. The plugin is
   mounted read-only, so tests never write into the working tree. `make down` stops the test DB.
+  `make coverage` runs the suite with PCOV and prints a summary; open `coverage/index.html`
+  for line-by-line detail. Code that runs while the plugin loads (the main plugin file,
+  hook registration) shows as uncovered because it executes before the tests start.
   Tests live in `tests/phpunit/`; extend `WP_AI_Gatekeeper_TestCase` for the shared editor,
   AI user, API key, and REST helpers.
 - **Coding standards (WordPress Coding Standards + PHP 7.4 compatibility):**

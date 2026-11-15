@@ -8,6 +8,12 @@
 	convertNoticesToExceptions="true"
 	convertWarningsToExceptions="true"
 >
+	<coverage>
+		<include>
+			<directory suffix=".php">./includes</directory>
+			<file>./wp-ai-gatekeeper.php</file>
+		</include>
+	</coverage>
 	<testsuites>
 		<testsuite name="wp-ai-gatekeeper">
 			<directory prefix="test-" suffix=".php">./tests/phpunit/</directory>

@@ -16,7 +16,11 @@ RUN composer config platform.php "${PHP_VERSION}" \
 FROM php:${PHP_VERSION}-cli
 ARG WP_VERSION=latest
 
-RUN docker-php-ext-install mysqli
+# PCOV provides code coverage; disabled by default, `make coverage` enables it.
+RUN docker-php-ext-install mysqli \
+	&& pecl install pcov \
+	&& docker-php-ext-enable pcov \
+	&& echo 'pcov.enabled=0' > /usr/local/etc/php/conf.d/zz-pcov.ini
 
 COPY --from=deps /opt/composer /opt/composer
 

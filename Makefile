@@ -1,4 +1,4 @@
-.PHONY: help up down restart reset logs wp verify lint test cs cs-fix dist shell
+.PHONY: help up down restart reset logs wp verify lint test coverage cs cs-fix dist shell
 
 help: ## Show available Make commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -28,6 +28,14 @@ verify: ## Run Python static & structural verification checks
 test: ## Run PHPUnit in Docker (ARGS="--filter foo", PHP_VERSION=7.4, WP_VERSION=6.5)
 	docker compose --profile test build tests
 	docker compose --profile test run --rm tests $(ARGS)
+
+coverage: ## Run PHPUnit with code coverage (text summary + HTML report in coverage/)
+	docker compose --profile test build tests
+	mkdir -p coverage
+	docker compose --profile test run --rm -v "$(CURDIR)/coverage:/coverage" --entrypoint sh tests -c \
+		'php -d pcov.enabled=1 -d pcov.directory=/app /opt/composer/vendor/bin/phpunit --coverage-text --coverage-html /coverage $(ARGS); \
+		status=$$?; chown -R $(shell id -u):$(shell id -g) /coverage; exit $$status'
+	@echo "HTML report: coverage/index.html"
 
 cs: ## Check PHP against WordPress Coding Standards (needs: composer install)
 	vendor/bin/phpcs
