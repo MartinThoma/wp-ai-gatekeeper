@@ -76,6 +76,8 @@ Capabilities are restricted, but this widens the attack surface unnecessarily.
 - `uninstall.php`: nothing can set `wp_ai_gatekeeper_delete_data_on_uninstall`, so tables are
   never dropped; the `ai-assistant` user is left behind with no role. Add the setting (or
   document a WP-CLI way) and decide what happens to the AI user.
+- Post meta `_wpai_drafted_by` / `_wpai_scheduled_by` stays after uninstall. Keeping the
+  "drafted by AI" record is probably right; decide and document it.
 - `render_settings_page` creates the AI user as a side effect of a GET; move that to an
   explicit action.
 

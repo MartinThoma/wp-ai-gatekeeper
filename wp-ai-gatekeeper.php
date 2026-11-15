@@ -31,6 +31,7 @@ require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-diff.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-markup-guard.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-preview.php';
+require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-authorship.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-suggestion-service.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-rest-controller.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/admin/class-meta-box.php';
@@ -82,6 +83,7 @@ final class WP_AI_Gatekeeper {
 
 		WP_AI_Gatekeeper_Auth::init();
 		WP_AI_Gatekeeper_Permissions::init();
+		WP_AI_Gatekeeper_Authorship::init();
 
 		if ( is_admin() ) {
 			WP_AI_Gatekeeper_Meta_Box::init();

@@ -123,6 +123,12 @@ class WP_AI_Gatekeeper_Admin_Menu {
 			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=role_synced' ) );
 			exit;
 		}
+
+		if ( 'save_authorship' === $action ) {
+			WP_AI_Gatekeeper_Authorship::set_enabled( ! empty( $_POST['reassign_author_on_publish'] ) );
+			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=settings_saved' ) );
+			exit;
+		}
 	}
 
 	/**
@@ -317,6 +323,27 @@ class WP_AI_Gatekeeper_Admin_Menu {
 						<?php wp_nonce_field( 'wpai_settings_action', 'wpai_settings_nonce' ); ?>
 						<input type="hidden" name="wpai_action" value="sync_ai_user" />
 						<?php submit_button( __( 'Re-Sync AI Role & Service Account', 'wp-ai-gatekeeper' ), 'secondary', 'submit', false ); ?>
+					</form>
+				</div>
+
+				<div class="wpai-settings-card">
+					<h2><?php esc_html_e( 'Authorship', 'wp-ai-gatekeeper' ); ?></h2>
+					<?php if ( isset( $_GET['updated'] ) && 'settings_saved' === $_GET['updated'] ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display only. ?>
+						<div class="notice notice-success inline"><p><?php esc_html_e( 'Settings saved.', 'wp-ai-gatekeeper' ); ?></p></div>
+					<?php endif; ?>
+					<form method="post" action="">
+						<?php wp_nonce_field( 'wpai_settings_action', 'wpai_settings_nonce' ); ?>
+						<input type="hidden" name="wpai_action" value="save_authorship" />
+						<p>
+							<label>
+								<input type="checkbox" name="reassign_author_on_publish" value="1" <?php checked( WP_AI_Gatekeeper_Authorship::is_enabled() ); ?> />
+								<?php esc_html_e( 'When an AI draft is published, make the person who publishes it the author', 'wp-ai-gatekeeper' ); ?>
+							</label>
+						</p>
+						<p class="description">
+							<?php esc_html_e( 'The AI stays recorded as "Drafted by AI" in the posts list and the API, but not on the public site. For scheduled posts, the person who scheduled the post becomes the author.', 'wp-ai-gatekeeper' ); ?>
+						</p>
+						<?php submit_button( __( 'Save', 'wp-ai-gatekeeper' ), 'secondary', 'submit', false ); ?>
 					</form>
 				</div>
 			</div>

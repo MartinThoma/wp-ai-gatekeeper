@@ -1049,7 +1049,8 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 	 * @return array
 	 */
 	private function format_post( WP_Post $post, $open_suggestions_count = 0 ) {
-		$author = get_userdata( (int) $post->post_author );
+		$author     = get_userdata( (int) $post->post_author );
+		$drafted_by = WP_AI_Gatekeeper_Authorship::drafted_by( $post->ID );
 
 		return array(
 			'id'                     => (int) $post->ID,
@@ -1057,7 +1058,8 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			'status'                 => (string) $post->post_status,
 			'author'                 => (int) $post->post_author,
 			'author_name'            => $author ? (string) $author->display_name : '',
-			'is_ai_authored'         => WP_AI_Gatekeeper_Auth::is_ai_user( (int) $post->post_author ),
+			'is_ai_authored'         => $drafted_by > 0 || WP_AI_Gatekeeper_Auth::is_ai_user( (int) $post->post_author ),
+			'drafted_by'             => $drafted_by > 0 ? $drafted_by : null,
 			'excerpt'                => (string) $post->post_excerpt,
 			'content_raw'            => (string) $post->post_content,
 			'content_rendered'       => apply_filters( 'the_content', $post->post_content ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter.

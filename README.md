@@ -183,6 +183,17 @@ When the human clicks **Merge Suggestion** in WP Admin (or calls `POST /wp-json/
 2. The suggestion status transitions to `merged` (`is_locked: true`).
 3. **Immutability Guarantee:** Any subsequent attempt by either the AI or a human to edit, comment on, merge, or reject that suggestion returns `409 Conflict` (`suggestion_already_merged`).
 
+### 6. Publishing an AI Draft: Who Is the Author?
+
+When a human publishes a draft the AI wrote, **the person who publishes it becomes the author**:
+they took editorial responsibility. For scheduled posts, the person who scheduled the post
+becomes the author when it goes live. The AI is still recorded as the drafter: a **Drafted by
+AI** column in **Posts → All Posts**, plus `is_ai_authored: true` and `drafted_by` in the
+`/ai-gatekeeper/v1/posts` API. It does not appear on the public site.
+
+This is on by default; turn it off under **AI Gatekeeper → API Keys & Settings → Authorship** to
+keep the AI as the author.
+
 ---
 
 ## Contributing & Roadmap
