@@ -29,11 +29,12 @@ require_once "{$_tests_dir}/includes/functions.php";
 
 /**
  * Manually load the plugin being tested.
+ *
+ * Tables and the AI role/user are created per test in set_up(); doing it here
+ * would run before pluggable functions (get_user_by, etc.) are available.
  */
 function _manually_load_wp_ai_gatekeeper_plugin() {
 	require dirname( __DIR__, 2 ) . '/wp-ai-gatekeeper.php';
-	WP_AI_Gatekeeper_Database::create_tables();
-	WP_AI_Gatekeeper_Auth::activate();
 }
 
 tests_add_filter( 'muplugins_loaded', '_manually_load_wp_ai_gatekeeper_plugin' );

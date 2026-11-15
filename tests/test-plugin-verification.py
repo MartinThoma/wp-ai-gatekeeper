@@ -23,6 +23,7 @@ EXPECTED_FILES = [
     "composer.json",
     "phpunit.xml.dist",
     "bin/install-wp-tests.sh",
+    "tests/Dockerfile",
     ".github/workflows/ci.yml",
     "includes/class-database.php",
     "includes/class-auth.php",
@@ -128,7 +129,7 @@ def test_staging_application_passwords_and_docker():
 
 def test_makefile_and_ci_and_roadmap():
     makefile = read_file("Makefile")
-    for target in ["up:", "down:", "restart:", "reset:", "logs:", "wp:", "verify:"]:
+    for target in ["up:", "down:", "restart:", "reset:", "logs:", "wp:", "verify:", "test:"]:
         assert target in makefile, f"Missing target '{target}' in Makefile"
 
     ci = read_file(".github/workflows/ci.yml")

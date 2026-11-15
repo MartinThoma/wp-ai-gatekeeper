@@ -6,8 +6,8 @@ help: ## Show available Make commands
 up: ## Start WordPress + MariaDB in Docker and activate WP AI Gatekeeper
 	docker compose up -d --remove-orphans
 
-down: ## Stop Docker containers
-	docker compose down
+down: ## Stop Docker containers (including the test database)
+	docker compose --profile test down
 
 restart: ## Recreate containers and re-run WP-CLI setup/activation
 	docker compose up -d --force-recreate --remove-orphans
@@ -24,6 +24,10 @@ wp: ## Run a WP-CLI command inside the container (e.g. make wp ARGS="plugin list
 
 verify: ## Run Python static & structural verification checks
 	python3 tests/test-plugin-verification.py
+
+test: ## Run PHPUnit in Docker (ARGS="--filter foo", PHP_VERSION=7.4, WP_VERSION=6.5)
+	docker compose --profile test build tests
+	docker compose --profile test run --rm tests $(ARGS)
 
 lint: ## Run PHP syntax linter inside the WordPress Docker container
 	docker compose exec wordpress sh -c 'find /var/www/html/wp-content/plugins/wp-ai-gatekeeper -name "*.php" -not -path "*/vendor/*" -print0 | xargs -0 -n1 php -l'

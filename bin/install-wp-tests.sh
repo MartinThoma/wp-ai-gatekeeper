@@ -17,6 +17,15 @@ WP_CORE_DIR=${WP_CORE_DIR-/tmp/wordpress}
 
 set -ex
 
+# Resolve "latest" to a concrete release so core and the test suite always match
+# (trunk's test suite is not guaranteed to work against the latest release).
+if [ "$WP_VERSION" = "latest" ]; then
+	RESOLVED=$(curl -sf https://api.wordpress.org/core/version-check/1.7/ | grep -o '"version":"[0-9.]*"' | head -1 | cut -d'"' -f4)
+	if [ -n "$RESOLVED" ]; then
+		WP_VERSION="$RESOLVED"
+	fi
+fi
+
 install_wp() {
 	if [ -d "$WP_CORE_DIR" ]; then
 		return
@@ -38,14 +47,16 @@ install_test_suite() {
 		mkdir -p "$WP_TESTS_DIR"
 		if [ "$WP_VERSION" = "latest" ] || [ "$WP_VERSION" = "trunk" ]; then
 			DEV_REF="heads/trunk"
+		elif [[ "$WP_VERSION" =~ ^[0-9]+\.[0-9]+$ ]]; then
+			# wordpress-develop tags major releases as X.Y.0 (core archives use X.Y).
+			DEV_REF="tags/${WP_VERSION}.0"
 		else
 			DEV_REF="tags/${WP_VERSION}"
 		fi
 
+		# No silent fallback to trunk: a mismatched test suite breaks in confusing ways.
 		TMP_DEV_DIR=$(mktemp -d)
-		if ! curl -sLf "https://github.com/WordPress/wordpress-develop/archive/refs/${DEV_REF}.tar.gz" | tar --strip-components=1 -zxmf - -C "$TMP_DEV_DIR"; then
-			curl -sLf "https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.tar.gz" | tar --strip-components=1 -zxmf - -C "$TMP_DEV_DIR"
-		fi
+		curl -sLf "https://github.com/WordPress/wordpress-develop/archive/refs/${DEV_REF}.tar.gz" | tar --strip-components=1 -zxmf - -C "$TMP_DEV_DIR"
 
 		cp -R "$TMP_DEV_DIR/tests/phpunit/includes" "$WP_TESTS_DIR/includes"
 		cp -R "$TMP_DEV_DIR/tests/phpunit/data" "$WP_TESTS_DIR/data"

@@ -66,6 +66,7 @@ make restart   # Restart containers and re-run wp-cli activation/setup
 make reset     # Wipe volumes and rebuild a clean WordPress instance from scratch
 make logs      # Tail container logs
 make verify    # Run static & structural verification tests
+make test      # Run the PHPUnit integration suite in Docker
 make wp CMD="plugin list"  # Run any WP-CLI command inside the container
 ```
 
@@ -171,14 +172,25 @@ When the human clicks **Merge Suggestion** in WP Admin (or calls `POST /wp-json/
 
 ## Testing & Continuous Integration
 
-- **Fast Structural & Security Verification (Python 3):**
+- **PHPUnit integration tests (Docker only, no local PHP needed):**
+  ```bash
+  make test                                   # PHP 8.3 + latest WordPress
+  make test ARGS="--filter merge"             # run a subset
+  make test PHP_VERSION=7.4 WP_VERSION=6.5    # oldest supported combination
+  ```
+  The first run builds a test image (PHP, `mysqli`, Composer dev dependencies, and the
+  matching WordPress test suite) and starts a throwaway MariaDB on tmpfs. The plugin is
+  mounted read-only, so tests never write into the working tree. `make down` stops the test DB.
+- **Fast Structural Verification (Python 3):**
   ```bash
   make verify
   ```
 - **GitHub Actions CI (`.github/workflows/ci.yml`):**
   Automatically runs on every Pull Request and push to `main`:
   1. Static syntax & structural verification (`tests/test-plugin-verification.py` + `php -l`)
-  2. Full WordPress + MySQL integration test suite via PHPUnit (`tests/phpunit/test-ai-gatekeeper.php`) across PHP 8.1 and 8.2.
+  2. Full WordPress + MariaDB integration test suite via PHPUnit (`tests/phpunit/`) across PHP 7.4–8.3 and WordPress 6.5 / latest.
+
+Open work is tracked in [ROADMAP.md](ROADMAP.md).
 
 ---
 

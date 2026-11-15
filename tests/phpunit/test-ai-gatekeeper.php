@@ -158,6 +158,8 @@ class Test_WP_AI_Gatekeeper extends WP_UnitTestCase {
 		$this->assertSame( 'Updated AI draft paragraph.', $ai_post_after->post_content );
 
 		// Human creates a draft and a published post -> AI cannot edit either directly.
+		// Fixtures are created as the editor; as the AI they would be forced to draft.
+		wp_set_current_user( $this->editor_id );
 		$human_draft_id = self::factory()->post->create(
 			array(
 				'post_author' => $this->editor_id,
@@ -170,6 +172,8 @@ class Test_WP_AI_Gatekeeper extends WP_UnitTestCase {
 				'post_status' => 'publish',
 			)
 		);
+		$this->assertSame( 'publish', get_post_status( $published_id ) );
+		wp_set_current_user( $this->ai_user_id );
 
 		$this->assertFalse( current_user_can( 'edit_post', $human_draft_id ), 'AI must not edit human-owned drafts directly.' );
 		$this->assertFalse( current_user_can( 'edit_post', $published_id ), 'AI must not edit published posts directly, even if originally authored by AI.' );

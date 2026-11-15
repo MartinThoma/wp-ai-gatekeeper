@@ -76,6 +76,36 @@ services:
         echo 'WordPress is ready at http://localhost:8080 (login: admin / admin)';
       "
 
+  # --- PHPUnit test stack (only started via `make test`) ---
+  testdb:
+    image: mariadb:10.11
+    profiles: ["test"]
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: wordpress_test
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: tests/Dockerfile
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.3}
+        WP_VERSION: ${WP_VERSION:-latest}
+    image: wp-ai-gatekeeper-tests:php${PHP_VERSION:-8.3}-wp${WP_VERSION:-latest}
+    depends_on:
+      testdb:
+        condition: service_healthy
+    volumes:
+      - .:/app:ro
+
 volumes:
   db_data:
   wp_data:
