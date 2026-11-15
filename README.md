@@ -44,7 +44,8 @@ wp plugin install https://github.com/MartinThoma/wp-ai-gatekeeper/releases/lates
 ```
 
 Activation creates the restricted **AI Gatekeeper Agent** role, an `ai-assistant` service
-account for your AI agents, and two database tables that store suggestions and their discussions.
+account for your AI agents (`ai-assistant-2` if that username is already taken; existing users
+are never changed), and two database tables that store suggestions and their discussions.
 
 ### 2. Create an API key for your AI agent
 

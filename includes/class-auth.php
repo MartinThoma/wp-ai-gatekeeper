@@ -145,7 +145,22 @@ class WP_AI_Gatekeeper_Auth {
 	}
 
 	/**
+	 * Base login for the AI service account; "-2", "-3", ... are appended when taken.
+	 */
+	const DEFAULT_LOGIN = 'ai-assistant';
+
+	/**
 	 * Ensures a dedicated AI agent WordPress user exists and returns its ID.
+	 *
+	 * Never changes the role of an existing user: set_role() strips all other
+	 * roles, so re-roling a user who happens to be called "ai-assistant" would
+	 * demote an administrator, and re-roling the AI account would undo an
+	 * admin's deliberate change. Runs on activation, re-sync, and every view of
+	 * the settings page, so this must be safe to call repeatedly.
+	 *
+	 * Order: the configured account if it still has the AI role; else the
+	 * oldest account with the AI role; else a new account under the first free
+	 * login.
 	 *
 	 * @return int|WP_Error
 	 */
@@ -153,33 +168,43 @@ class WP_AI_Gatekeeper_Auth {
 		self::register_role();
 
 		$stored_id = (int) get_option( self::DEFAULT_USER_OPTION, 0 );
-		if ( $stored_id > 0 ) {
-			$existing = get_userdata( $stored_id );
-			if ( $existing && in_array( self::ROLE_SLUG, (array) $existing->roles, true ) ) {
-				return $stored_id;
-			}
+		if ( $stored_id > 0 && self::is_ai_user( $stored_id ) ) {
+			return $stored_id;
 		}
 
-		$user = get_user_by( 'login', 'ai-assistant' );
-		if ( $user instanceof WP_User ) {
-			if ( ! in_array( self::ROLE_SLUG, (array) $user->roles, true ) ) {
-				$user->set_role( self::ROLE_SLUG );
-			}
-			update_option( self::DEFAULT_USER_OPTION, (int) $user->ID );
-			return (int) $user->ID;
+		$existing = get_users(
+			array(
+				'role'    => self::ROLE_SLUG,
+				'orderby' => 'ID',
+				'order'   => 'ASC',
+				'number'  => 1,
+				'fields'  => 'ID',
+			)
+		);
+		if ( ! empty( $existing ) ) {
+			$user_id = (int) $existing[0];
+			update_option( self::DEFAULT_USER_OPTION, $user_id );
+			return $user_id;
 		}
 
-		$email = 'ai-assistant@' . wp_parse_url( home_url(), PHP_URL_HOST );
+		$login  = self::DEFAULT_LOGIN;
+		$suffix = 1;
+		while ( username_exists( $login ) ) {
+			++$suffix;
+			$login = self::DEFAULT_LOGIN . '-' . $suffix;
+		}
+
+		$email = $login . '@' . wp_parse_url( home_url(), PHP_URL_HOST );
 		if ( ! is_email( $email ) ) {
-			$email = 'ai-assistant@example.invalid';
+			$email = $login . '@example.invalid';
 		}
 		if ( email_exists( $email ) ) {
-			$email = 'ai-assistant-' . wp_generate_password( 6, false, false ) . '@example.invalid';
+			$email = $login . '-' . wp_generate_password( 6, false, false ) . '@example.invalid';
 		}
 
 		$user_id = wp_insert_user(
 			array(
-				'user_login'   => 'ai-assistant',
+				'user_login'   => $login,
 				'user_pass'    => wp_generate_password( 32, true, true ),
 				'user_email'   => $email,
 				'display_name' => __( 'AI Editorial Assistant', 'wp-ai-gatekeeper' ),
