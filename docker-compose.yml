@@ -70,7 +70,6 @@ services:
             --admin_email=admin@example.com \
             --skip-email;
         fi;
-        wp plugin deactivate wp-controlled-ai --path=/var/www/html >/dev/null 2>&1 || true;
         wp rewrite structure '/%postname%/' --hard --path=/var/www/html;
         wp plugin activate wp-ai-gatekeeper --path=/var/www/html;
         echo 'WordPress is ready at http://localhost:8080 (login: admin / admin)';

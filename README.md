@@ -25,51 +25,51 @@
 
 ---
 
-## Quick Start (Local Docker Environment)
+## Installation
 
-You only need **Docker** and **Docker Compose** (plus `make`).
+Requires **WordPress 6.0+** and **PHP 7.4+**.
 
-### 1. Start the Local Stack
+### 1. Install and activate the plugin
+
+**From the WordPress admin (no command line needed):**
+
+1. Download **[wp-ai-gatekeeper.zip](https://github.com/MartinThoma/wp-ai-gatekeeper/releases/latest/download/wp-ai-gatekeeper.zip)** from the latest release.
+2. In WP Admin, go to **Plugins → Add New Plugin → Upload Plugin**, choose the zip, and click **Install Now**.
+3. Click **Activate**.
+
+**Or with WP-CLI (one command):**
 
 ```bash
-make up
+wp plugin install https://github.com/MartinThoma/wp-ai-gatekeeper/releases/latest/download/wp-ai-gatekeeper.zip --activate
 ```
 
-This spins up:
-- **MySQL 8.0** database
-- **WordPress (PHP 8.2)** at `http://localhost:8080` with `define( 'WP_ENVIRONMENT_TYPE', 'staging' );` configured so WordPress Application Passwords work out of the box
-- **WP-CLI Bootstrapper** that automatically installs WordPress, activates `wp-ai-gatekeeper`, creates the restricted `ai_gatekeeper_bot` user, and seeds a sample published article (`#10`) for testing
+Activation creates the restricted **AI Gatekeeper Agent** role, an `ai-assistant` service
+account for your AI agents, and two database tables that store suggestions and their discussions.
 
-### 2. Log into WordPress Admin
-
-- **URL:** `http://localhost:8080/wp-admin`
-- **Username:** `admin`
-- **Password:** `admin`
-
-### 3. Generate an AI API Key (or Application Password)
+### 2. Create an API key for your AI agent
 
 1. In WP Admin, go to **AI Gatekeeper → API Keys & Settings**.
-2. Enter a label (e.g., `Editorial Assistant Bot`) and click **Generate API Key**.
-3. Copy the `wpai_...` key shown once at the top of the screen.
+2. Enter a label (e.g. `Editorial Assistant Bot`) and click **Generate API Key**.
+3. Copy the `wpai_...` key. It is shown only once; if you lose it, revoke it and create a new one.
 
-*(Alternatively, because `WP_ENVIRONMENT_TYPE` is set to `'staging'` and the plugin enables Application Passwords in staging environments, you can also generate a standard WordPress Application Password for the `ai_gatekeeper_bot` user under **Users → Profile**).*
-
----
-
-## Common `Makefile` Commands
+### 3. Check the connection
 
 ```bash
-make help      # Show all available commands
-make up        # Start WordPress + MySQL and auto-configure WP AI Gatekeeper
-make down      # Stop containers (preserves database volume)
-make restart   # Restart containers and re-run wp-cli activation/setup
-make reset     # Wipe volumes and rebuild a clean WordPress instance from scratch
-make logs      # Tail container logs
-make verify    # Run static & structural verification tests
-make test      # Run the PHPUnit integration suite in Docker
-make cs        # Check WordPress Coding Standards (make cs-fix to auto-fix)
-make wp CMD="plugin list"  # Run any WP-CLI command inside the container
+export SITE="https://your-site.example"
+export WPAI_KEY="wpai_your_generated_key_here"
+
+curl -s "$SITE/wp-json/ai-gatekeeper/v1/posts?per_page=1" -H "X-WP-AI-Key: $WPAI_KEY"
 ```
+
+A JSON response with an `items` list means your agent is connected. A `401` means the key is
+wrong or revoked. If your site uses plain permalinks (`?p=123`), use
+`$SITE/?rest_route=/ai-gatekeeper/v1/posts` instead of `$SITE/wp-json/ai-gatekeeper/v1/posts`.
+
+Suggestions from your agent show up under **AI Gatekeeper → Suggestions Queue** and in the
+post editor, where editors can comment, merge, or reject them.
+
+*Want to try it without touching a real site? `make up` starts a local WordPress with the plugin
+in Docker; see [docs/how-to-contribute.md](docs/how-to-contribute.md).*
 
 ---
 
@@ -81,38 +81,42 @@ AI agents can authenticate using any of the following methods:
    ```http
    X-WP-AI-Key: wpai_your_generated_key_here
    ```
-2. **Bearer Token:**
+2. **Bearer Token** (some Apache setups strip the `Authorization` header; use the custom header then):
    ```http
    Authorization: Bearer wpai_your_generated_key_here
    ```
 3. **WordPress Application Password (HTTP Basic Auth):**
-   Authenticate as the `ai_gatekeeper_bot` user (or any user assigned the `ai_contributor` role).
+   Authenticate as the `ai-assistant` user (or any user assigned the `ai_contributor` role).
+   WordPress requires HTTPS for Application Passwords; on `local`, `development`, and `staging`
+   sites the plugin also allows them over HTTP.
 
 ---
 
 ## REST API & PR-Style Suggestion Workflow
 
-All custom endpoints live under `/wp-json/ai-gatekeeper/v1`, alongside standard `/wp-json/wp/v2` endpoints for reading posts, managing own drafts, and uploading media.
+All custom endpoints live under `/wp-json/ai-gatekeeper/v1`, alongside standard `/wp-json/wp/v2` endpoints for reading posts, managing own drafts, and uploading media. The examples use the `$SITE` and `$WPAI_KEY` variables from [Installation](#3-check-the-connection).
 
 ### 1. Read All Articles (Published & Drafts)
 
 ```bash
-curl -s http://localhost:8080/wp-json/ai-gatekeeper/v1/posts?status=any \
+curl -s "$SITE/wp-json/ai-gatekeeper/v1/posts?status=all" \
   -H "X-WP-AI-Key: $WPAI_KEY"
 ```
+
+`status` accepts `all` (default), `draft`, or `publish`.
 
 ### 2. Create a New Draft & Upload Media
 
 ```bash
 # Upload an image via standard WP REST API
-curl -s -X POST http://localhost:8080/wp-json/wp/v2/media \
+curl -s -X POST "$SITE/wp-json/wp/v2/media" \
   -H "X-WP-AI-Key: $WPAI_KEY" \
   -H "Content-Disposition: attachment; filename=diagram.png" \
   -H "Content-Type: image/png" \
   --data-binary @diagram.png
 
 # Create a new draft (status is automatically enforced as 'draft')
-curl -s -X POST http://localhost:8080/wp-json/wp/v2/posts \
+curl -s -X POST "$SITE/wp-json/wp/v2/posts" \
   -H "X-WP-AI-Key: $WPAI_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -124,8 +128,10 @@ curl -s -X POST http://localhost:8080/wp-json/wp/v2/posts \
 
 ### 3. Propose a GitHub PR-Style Suggestion on an Existing Article
 
+Replace `123` with the ID of an existing post (from step 1). `original_text` must appear verbatim in the post.
+
 ```bash
-curl -s -X POST http://localhost:8080/wp-json/ai-gatekeeper/v1/posts/10/suggestions \
+curl -s -X POST "$SITE/wp-json/ai-gatekeeper/v1/posts/123/suggestions" \
   -H "X-WP-AI-Key: $WPAI_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -154,14 +160,14 @@ curl -s -X POST http://localhost:8080/wp-json/ai-gatekeeper/v1/posts/10/suggesti
 - **AI Agent** polls or fetches the suggestion thread:
 
 ```bash
-curl -s http://localhost:8080/wp-json/ai-gatekeeper/v1/suggestions/1 \
+curl -s "$SITE/wp-json/ai-gatekeeper/v1/suggestions/1" \
   -H "X-WP-AI-Key: $WPAI_KEY"
 ```
 
 - **AI Agent** revises its suggestion and replies in a single request:
 
 ```bash
-curl -s -X PATCH http://localhost:8080/wp-json/ai-gatekeeper/v1/suggestions/1 \
+curl -s -X PATCH "$SITE/wp-json/ai-gatekeeper/v1/suggestions/1" \
   -H "X-WP-AI-Key: $WPAI_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -179,44 +185,7 @@ When the human clicks **Merge Suggestion** in WP Admin (or calls `POST /wp-json/
 
 ---
 
-## Testing & Continuous Integration
+## Contributing & Roadmap
 
-- **PHPUnit integration tests (Docker only, no local PHP needed):**
-  ```bash
-  make test                                   # PHP 8.3 + latest WordPress
-  make test ARGS="--filter merge"             # run a subset
-  make test PHP_VERSION=7.4 WP_VERSION=6.5    # oldest supported combination
-  ```
-  The first run builds a test image (PHP, `mysqli`, Composer dev dependencies, and the
-  matching WordPress test suite) and starts a throwaway MariaDB on tmpfs. The plugin is
-  mounted read-only, so tests never write into the working tree. `make down` stops the test DB.
-- **Coding standards (WordPress Coding Standards + PHP 7.4 compatibility):**
-  ```bash
-  composer install        # once; needs PHP with xml + mbstring
-  pre-commit install      # once; runs phpcbf + phpcs on staged PHP files
-  make cs                 # check everything
-  make cs-fix             # auto-fix what phpcbf can
-  ```
-  Rules live in `phpcs.xml.dist`; CI runs the same `phpcs` check.
-- **Fast Structural Verification (Python 3):**
-  ```bash
-  make verify
-  ```
-- **GitHub Actions CI (`.github/workflows/ci.yml`):**
-  Automatically runs on every Pull Request and push to `main`:
-  1. Static syntax & structural verification (`tests/test-plugin-verification.py` + `php -l`)
-  2. WordPress Coding Standards (`phpcs`)
-  3. Full WordPress + MariaDB integration test suite via PHPUnit (`tests/phpunit/`) across PHP 7.4–8.3 and WordPress 6.5 / latest.
-
-Open work is tracked in [ROADMAP.md](ROADMAP.md).
-
----
-
-## Roadmap
-
-### Direct Claude (Anthropic) Integration Inside WordPress
-Currently, external AI agents authenticate *into* WordPress using `WP AI Gatekeeper` API keys or Application Passwords. A planned next milestone is allowing site administrators to store an **Anthropic (Claude) API Key** directly inside **AI Gatekeeper → Settings** so WordPress itself can invoke Claude on demand while remaining governed by the exact same permission boundaries:
-
-- **Encrypted Claude API Key Storage:** Store an Anthropic API key (`sk-ant-...`) in WordPress settings (with support for defining `WP_AI_GATEKEEPER_CLAUDE_API_KEY` via environment variable or `wp-config.php`) and model selector (e.g., Claude Sonnet / Opus) plus custom system prompt / brand style guidelines.
-- **One-Click Editorial Actions in the Block Editor:** Allow editors to highlight a block or article in Gutenberg and click *"Ask Claude to Suggest Improvements"* (proofreading, tone alignment, SEO meta/excerpt generation, or fact-check annotations), which automatically creates PR-style suggestions in the `WP AI Gatekeeper` queue.
-- **Automatic AI Replies in Suggestion Threads:** When a human editor posts a follow-up question or revision request on an open suggestion thread in WP Admin, WordPress can automatically trigger a background Action Scheduler / WP-Cron webhook to the Claude API with the article context and thread history so Claude updates its `suggested_text` and replies in the thread automatically—no external orchestrator required.
+- **[docs/how-to-contribute.md](docs/how-to-contribute.md):** local Docker environment, testing, coding standards, CI, and releases.
+- **[docs/ROADMAP.md](docs/ROADMAP.md):** open tasks and planned features.

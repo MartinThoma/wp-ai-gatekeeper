@@ -2,10 +2,10 @@
 
 Open work for WP AI Gatekeeper, highest priority first. When a task is finished it is
 **removed** from this file (git history keeps the record). Every fix ships with a PHPUnit
-regression test; run the suite with `make test` (see README → Testing).
+regression test; see [how-to-contribute.md](how-to-contribute.md) for running the suite.
 
-Product features that are planned but not yet scheduled are listed in the README's
-"Roadmap" section.
+Larger features that are planned but not yet scheduled are listed under
+[Planned Features](#planned-features) at the end.
 
 ## Medium
 
@@ -72,18 +72,18 @@ Capabilities are restricted, but this widens the attack surface unnecessarily.
 - Only honor the AI key for REST requests (e.g. check the request URI against
   `rest_get_url_prefix()`), and add a test that admin-ajax ignores it.
 
-### 10. README is out of date
-- The AI user is `ai-assistant`, not `ai_gatekeeper_bot`.
-- The Docker stack uses MariaDB 10.11 and `wordpress:latest`, not "MySQL 8.0" / "PHP 8.2".
-- Nothing seeds sample post `#10`.
-- `make wp CMD="..."` should be `make wp ARGS="..."`.
-- `?status=any` returns 400; allowed values are `all`, `draft`, `publish`.
-
-### 11. Cleanup
-- `docker-compose.yml`: remove the leftover `wp plugin deactivate wp-controlled-ai` line (and
-  the matching exception in `tests/test-plugin-verification.py`).
+### 10. Cleanup
 - `uninstall.php`: nothing can set `wp_ai_gatekeeper_delete_data_on_uninstall`, so tables are
   never dropped; the `ai-assistant` user is left behind with no role. Add the setting (or
   document a WP-CLI way) and decide what happens to the AI user.
 - `render_settings_page` creates the AI user as a side effect of a GET; move that to an
   explicit action.
+
+## Planned Features
+
+### Direct Claude (Anthropic) Integration Inside WordPress
+Currently, external AI agents authenticate *into* WordPress using `WP AI Gatekeeper` API keys or Application Passwords. A planned next milestone is allowing site administrators to store an **Anthropic (Claude) API Key** directly inside **AI Gatekeeper → Settings** so WordPress itself can invoke Claude on demand while remaining governed by the exact same permission boundaries:
+
+- **Encrypted Claude API Key Storage:** Store an Anthropic API key (`sk-ant-...`) in WordPress settings (with support for defining `WP_AI_GATEKEEPER_CLAUDE_API_KEY` via environment variable or `wp-config.php`) and model selector (e.g., Claude Sonnet / Opus) plus custom system prompt / brand style guidelines.
+- **One-Click Editorial Actions in the Block Editor:** Allow editors to highlight a block or article in Gutenberg and click *"Ask Claude to Suggest Improvements"* (proofreading, tone alignment, SEO meta/excerpt generation, or fact-check annotations), which automatically creates PR-style suggestions in the `WP AI Gatekeeper` queue.
+- **Automatic AI Replies in Suggestion Threads:** When a human editor posts a follow-up question or revision request on an open suggestion thread in WP Admin, WordPress can automatically trigger a background Action Scheduler / WP-Cron webhook to the Claude API with the article context and thread history so Claude updates its `suggested_text` and replies in the thread automatically—no external orchestrator required.

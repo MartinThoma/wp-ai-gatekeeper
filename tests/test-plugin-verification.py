@@ -41,6 +41,10 @@ EXPECTED_FILES = [
     "tests/phpunit/bootstrap.php",
     "tests/phpunit/test-ai-gatekeeper.php",
     "README.md",
+    "docs/ROADMAP.md",
+    "docs/how-to-contribute.md",
+    ".gitattributes",
+    ".github/workflows/release.yml",
 ]
 
 
@@ -67,10 +71,6 @@ def test_no_stale_controlled_ai_identifiers():
     forbidden = ["WP_Controlled_AI", "wp-controlled-ai", "wp_controlled_ai", "wp-controlled-ai/v1"]
     for rel_path in EXPECTED_FILES:
         content = read_file(rel_path)
-        # docker-compose.yml intentionally deactivates any legacy wp-controlled-ai slug if present in an old volume
-        if rel_path == "docker-compose.yml":
-            assert "WP_Controlled_AI" not in content
-            continue
         for token in forbidden:
             assert token not in content, f"Found stale identifier '{token}' in {rel_path}"
 
@@ -139,8 +139,12 @@ def test_makefile_and_ci_and_roadmap():
     assert "test-plugin-verification.py" in ci
 
     readme = read_file("README.md")
-    assert "## Roadmap" in readme
-    assert "Claude" in readme
+    assert "## Installation" in readme
+    assert "docs/ROADMAP.md" in readme
+
+    roadmap = read_file("docs/ROADMAP.md")
+    assert "## Planned Features" in roadmap
+    assert "Claude" in roadmap
 
 
 if __name__ == "__main__":
