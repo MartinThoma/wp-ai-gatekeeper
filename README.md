@@ -74,6 +74,27 @@ in Docker; see [docs/how-to-contribute.md](docs/how-to-contribute.md).*
 
 ---
 
+## Updates
+
+When a new version is released, WordPress shows it like any other plugin update: on the
+**Plugins** page and under **Dashboard → Updates**, with one-click updates and the usual
+**Enable auto-updates** link. **View details** shows the changelog.
+
+How it works and why it is safe:
+
+- The plugin checks this repository's latest GitHub release about twice a day. That request
+  goes to `github.com` (it reveals your site's IP address to GitHub, like any download from it).
+  WordPress never asks wordpress.org about this plugin, so a different plugin with the same name
+  there can never be installed as an "update".
+- Every release is signed with a key that is kept offline, not on GitHub. Your site checks the
+  signature before installing and **refuses unsigned or modified packages**, also for
+  auto-updates and WP-CLI. Even someone with full access to the GitHub repository cannot push
+  code to your site.
+- After an update, the plugin re-applies the AI role's permissions, so security fixes to what
+  the AI may do take effect without reactivating.
+
+---
+
 ## Authentication
 
 AI agents can authenticate using any of the following methods:

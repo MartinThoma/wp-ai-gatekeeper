@@ -44,6 +44,8 @@ make cs-fix                  # Auto-fix what phpcbf can
 make verify                  # Run the fast structural checks (Python 3)
 make lint                    # php -l every file inside the WordPress container
 make dist                    # Build dist/wp-ai-gatekeeper.zip from HEAD
+make release                 # Build + sign the release files for the tagged HEAD
+make signing-key             # Create the release signing key (once)
 ```
 
 ## Testing & Continuous Integration
@@ -83,11 +85,36 @@ make dist                    # Build dist/wp-ai-gatekeeper.zip from HEAD
 
 ## Releasing
 
-1. Bump `Version:` in the `wp-ai-gatekeeper.php` header (and `WP_AI_GATEKEEPER_VERSION`).
-2. Commit, then tag and push: `git tag v1.2.3 && git push origin v1.2.3`.
-3. `.github/workflows/release.yml` checks that the tag matches the header version, builds the
-   zip with `make dist`, and publishes it as a GitHub release. The install links in the README
-   always point at the latest release.
+Updates reach installed sites through GitHub releases (see "Updates" in the README). Every
+release must be **signed** with an offline key; installed sites refuse unsigned or tampered
+packages, so a compromised GitHub account cannot ship code to them.
+
+**One-time setup** (per maintainer machine): `make signing-key` creates
+`~/.config/wp-ai-gatekeeper/release-signing.key` (readable only by you). Back it up somewhere
+safe and offline. Its public key must be listed in `includes/release-keys.php`. Requires local
+PHP with the `sodium` extension (standard since PHP 7.2).
+
+**Each release:**
+
+1. Bump `Version:` in the `wp-ai-gatekeeper.php` header and `WP_AI_GATEKEEPER_VERSION`; commit
+   and push to `main`.
+2. Tag and push the tag: `git tag v1.2.3 && git push origin v1.2.3`. CI checks the tag matches
+   the header version and creates a **draft** release with generated notes.
+3. With the tagged commit checked out and a clean tree, run `make release`. It builds
+   `dist/wp-ai-gatekeeper.zip` from the tag, signs it (`.sig`), verifies the signature against
+   `includes/release-keys.php`, and writes `dist/update.json`.
+4. Open the draft release on GitHub, upload the three files from `dist/`, and publish it.
+5. On publish, CI downloads the assets and verifies the signature again. If that job fails, fix
+   the assets right away: installed sites would refuse the update.
+
+Sites check for updates about twice a day (cached for 12 hours), so a release reaches them
+within a day; they can also click **Check again** under **Dashboard → Updates**.
+
+**Rotating the key:** run `make signing-key SIGNING_KEY=path/to/new.key`, add the new public
+key to `includes/release-keys.php`, and release that version signed with the **old** key. Once
+sites have it, later releases can be signed with the new key and the old key removed. If the
+secret key is lost, existing installations cannot be updated automatically: users must install
+a new version manually once.
 
 The zip only contains runtime files; development files are excluded via `.gitattributes`
 (`export-ignore`). Check what ships with `make dist && unzip -l dist/wp-ai-gatekeeper.zip`.

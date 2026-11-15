@@ -10,6 +10,7 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       wp-ai-gatekeeper
  * Domain Path:       /languages
+ * Update URI:        https://github.com/MartinThoma/wp-ai-gatekeeper
  *
  * @package WP_AI_Gatekeeper
  */
@@ -32,6 +33,7 @@ require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-diff.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-markup-guard.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-preview.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-authorship.php';
+require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-updater.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-suggestion-service.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-rest-controller.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/admin/class-meta-box.php';
@@ -79,11 +81,12 @@ final class WP_AI_Gatekeeper {
 			dirname( plugin_basename( WP_AI_GATEKEEPER_PLUGIN_FILE ) ) . '/languages'
 		);
 
-		$this->maybe_upgrade_database();
+		self::maybe_upgrade();
 
 		WP_AI_Gatekeeper_Auth::init();
 		WP_AI_Gatekeeper_Permissions::init();
 		WP_AI_Gatekeeper_Authorship::init();
+		WP_AI_Gatekeeper_Updater::init();
 
 		if ( is_admin() ) {
 			WP_AI_Gatekeeper_Meta_Box::init();
@@ -100,14 +103,24 @@ final class WP_AI_Gatekeeper {
 	}
 
 	/**
-	 * Runs database schema upgrades if plugin DB version changed.
+	 * Runs upgrade steps once after the plugin files change.
+	 *
+	 * Updates replace files without re-running activation, so anything set up
+	 * on activation must also be refreshed here: database tables and the AI
+	 * role's capabilities (a new version may tighten what the AI may do).
 	 */
-	private function maybe_upgrade_database() {
-		$installed_version = get_option( 'wp_ai_gatekeeper_db_version', '' );
-		if ( WP_AI_GATEKEEPER_DB_VERSION !== $installed_version ) {
-			WP_AI_Gatekeeper_Database::create_tables();
-			update_option( 'wp_ai_gatekeeper_db_version', WP_AI_GATEKEEPER_DB_VERSION );
+	public static function maybe_upgrade() {
+		$db_current     = WP_AI_GATEKEEPER_DB_VERSION === get_option( 'wp_ai_gatekeeper_db_version', '' );
+		$plugin_current = WP_AI_GATEKEEPER_VERSION === get_option( 'wp_ai_gatekeeper_version', '' );
+		if ( $db_current && $plugin_current ) {
+			return;
 		}
+
+		WP_AI_Gatekeeper_Database::create_tables();
+		update_option( 'wp_ai_gatekeeper_db_version', WP_AI_GATEKEEPER_DB_VERSION );
+
+		WP_AI_Gatekeeper_Auth::sync_role_capabilities();
+		update_option( 'wp_ai_gatekeeper_version', WP_AI_GATEKEEPER_VERSION );
 	}
 
 	/**
@@ -116,6 +129,7 @@ final class WP_AI_Gatekeeper {
 	public static function activate() {
 		WP_AI_Gatekeeper_Database::create_tables();
 		update_option( 'wp_ai_gatekeeper_db_version', WP_AI_GATEKEEPER_DB_VERSION );
+		update_option( 'wp_ai_gatekeeper_version', WP_AI_GATEKEEPER_VERSION );
 
 		WP_AI_Gatekeeper_Auth::activate();
 		flush_rewrite_rules();

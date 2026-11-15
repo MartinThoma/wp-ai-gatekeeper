@@ -70,6 +70,14 @@ Capabilities are restricted, but this widens the attack surface unnecessarily.
 
 ## Planned Features
 
+### Publish on wordpress.org
+Long term, distribute through the wordpress.org plugin directory for discoverability and its
+review process. Needs a `readme.txt` in the directory format, a review (which may require
+renaming: plugin names starting with "WP" are often rejected), and SVN publishing. Directory
+plugins must not update themselves from elsewhere, so the self-hosted updater
+(`includes/class-updater.php`, `Update URI` header) must be removed in the version published
+there, with a one-time migration note for existing users.
+
 ### Direct Claude (Anthropic) Integration Inside WordPress
 Currently, external AI agents authenticate *into* WordPress using `WP AI Gatekeeper` API keys or Application Passwords. A planned next milestone is allowing site administrators to store an **Anthropic (Claude) API Key** directly inside **AI Gatekeeper → Settings** so WordPress itself can invoke Claude on demand while remaining governed by the exact same permission boundaries:
 

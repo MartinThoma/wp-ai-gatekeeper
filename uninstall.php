@@ -15,6 +15,8 @@ $wp_ai_gatekeeper_delete_data = (bool) get_option( 'wp_ai_gatekeeper_delete_data
 
 delete_option( 'wp_ai_gatekeeper_api_keys' );
 delete_option( 'wp_ai_gatekeeper_db_version' );
+delete_option( 'wp_ai_gatekeeper_version' );
+delete_site_transient( 'wp_ai_gatekeeper_update_manifest' );
 delete_option( 'wp_ai_gatekeeper_default_ai_user_id' );
 delete_option( 'wp_ai_gatekeeper_settings' );
 delete_option( 'wp_ai_gatekeeper_delete_data_on_uninstall' );

@@ -1,4 +1,4 @@
-.PHONY: help up down restart reset logs wp verify lint test coverage cs cs-fix dist shell
+.PHONY: help up down restart reset logs wp verify lint test coverage cs cs-fix dist signing-key release shell
 
 help: ## Show available Make commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -48,6 +48,28 @@ dist: ## Build the installable plugin zip from HEAD (dist/wp-ai-gatekeeper.zip)
 	mkdir -p dist
 	git archive --format=zip --prefix=wp-ai-gatekeeper/ -o dist/wp-ai-gatekeeper.zip HEAD
 	@echo "Built dist/wp-ai-gatekeeper.zip"
+
+SIGNING_KEY ?= $(HOME)/.config/wp-ai-gatekeeper/release-signing.key
+RELEASE_FILES = dist/wp-ai-gatekeeper.zip dist/wp-ai-gatekeeper.zip.sig dist/update.json
+
+signing-key: ## Create the release signing key (once per maintainer; keep it offline and backed up)
+	php bin/release-tool.php keygen "$(SIGNING_KEY)"
+
+release: ## Build + sign release files for the tagged HEAD into dist/ (see docs/how-to-contribute.md)
+	@tag=$$(git describe --exact-match --tags HEAD 2>/dev/null) || { echo "HEAD is not tagged. Tag the release commit first: git tag vX.Y.Z"; exit 1; }; \
+	version=$$(sed -n 's/^ \* Version: *//p' wp-ai-gatekeeper.php); \
+	[ "$$tag" = "v$$version" ] || { echo "Tag $$tag does not match plugin Version $$version"; exit 1; }; \
+	[ -z "$$(git status --porcelain)" ] || { echo "Working tree is not clean"; exit 1; }; \
+	mkdir -p dist; \
+	rm -f $(RELEASE_FILES) dist/changelog.txt; \
+	git archive --format=zip --prefix=wp-ai-gatekeeper/ -o dist/wp-ai-gatekeeper.zip "$$tag"; \
+	prev=$$(git describe --tags --abbrev=0 "$$tag^" 2>/dev/null || true); \
+	git log --format='- %s' $${prev:+$$prev..}$$tag > dist/changelog.txt; \
+	php bin/release-tool.php sign dist/wp-ai-gatekeeper.zip "$(SIGNING_KEY)" && \
+	php bin/release-tool.php verify dist/wp-ai-gatekeeper.zip && \
+	php bin/release-tool.php manifest "$$version" dist/changelog.txt dist/update.json && \
+	rm -f dist/changelog.txt && \
+	echo && echo "Upload these 3 files to the draft release $$tag on GitHub, then publish it:" && ls -1 $(RELEASE_FILES)
 
 lint: ## Run PHP syntax linter inside the WordPress Docker container
 	docker compose exec wordpress sh -c 'find /var/www/html/wp-content/plugins/wp-ai-gatekeeper -name "*.php" -not -path "*/vendor/*" -print0 | xargs -0 -n1 php -l'

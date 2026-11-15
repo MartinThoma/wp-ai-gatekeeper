@@ -43,5 +43,11 @@
 		</properties>
 		<!-- Test bootstrap follows the WP core test-suite conventions. -->
 		<exclude-pattern>/tests/*</exclude-pattern>
+		<!-- Command-line tools: never loaded by WordPress and not shipped in the plugin zip. -->
+		<exclude-pattern>/bin/*</exclude-pattern>
+	</rule>
+
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>/bin/*</exclude-pattern>
 	</rule>
 </ruleset>
