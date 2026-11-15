@@ -149,6 +149,9 @@ class WP_AI_Gatekeeper_Meta_Box {
 				'addingComment'      => __( 'Posting...', 'wp-ai-gatekeeper' ),
 				'merging'            => __( 'Merging...', 'wp-ai-gatekeeper' ),
 				'rejecting'          => __( 'Rejecting...', 'wp-ai-gatekeeper' ),
+				'showArticle'        => __( 'Show in full article', 'wp-ai-gatekeeper' ),
+				'hideArticle'        => __( 'Hide full article', 'wp-ai-gatekeeper' ),
+				'loadingArticle'     => __( 'Loading article…', 'wp-ai-gatekeeper' ),
 			),
 		);
 	}
@@ -291,6 +294,11 @@ class WP_AI_Gatekeeper_Meta_Box {
 
 			<div class="wpai-card-diff">
 				<?php echo wp_kses_post( $suggestion['diff_html'] ); ?>
+				<button type="button" class="button-link wpai-btn-preview" aria-expanded="false" aria-controls="wpai-preview-<?php echo esc_attr( $suggestion['id'] ); ?>">
+					<span class="dashicons dashicons-media-document" aria-hidden="true"></span>
+					<span class="wpai-btn-preview-label"><?php esc_html_e( 'Show in full article', 'wp-ai-gatekeeper' ); ?></span>
+				</button>
+				<div class="wpai-article-preview" id="wpai-preview-<?php echo esc_attr( $suggestion['id'] ); ?>" tabindex="-1" hidden></div>
 			</div>
 
 			<div class="wpai-card-thread">

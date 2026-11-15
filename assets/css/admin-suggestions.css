@@ -195,6 +195,92 @@
 	font-weight: 600;
 }
 
+/* Queue: keep cards below the floated status filter links */
+.wpai-queue-container {
+	clear: both;
+	padding-top: 8px;
+}
+
+/* Full-article preview */
+.wpai-btn-preview {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 10px;
+	font-size: 13px;
+	text-decoration: none;
+}
+
+.wpai-btn-preview .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+
+.wpai-article-preview {
+	position: relative;
+	margin-top: 10px;
+	max-height: 60vh;
+	overflow: auto;
+	padding: 20px 24px;
+	border: 1px solid #d0d7de;
+	border-radius: 6px;
+	background: #ffffff;
+	color: #1d2327;
+	font-size: 15px;
+	line-height: 1.65;
+}
+
+.wpai-article-preview[aria-busy="true"] {
+	color: #57606a;
+	font-size: 13px;
+}
+
+.wpai-preview-article {
+	max-width: 70ch;
+}
+
+.wpai-preview-title {
+	margin: 0 0 12px;
+	padding: 0;
+	font-size: 22px;
+	line-height: 1.3;
+}
+
+.wpai-preview-excerpt {
+	color: #57606a;
+	font-style: italic;
+}
+
+.wpai-preview-label {
+	font-style: normal;
+	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.wpai-preview-content img {
+	max-width: 100%;
+	height: auto;
+}
+
+.wpai-preview-change {
+	scroll-margin: 40px;
+	outline: 2px solid #54aeff66;
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+.wpai-preview-notice {
+	margin: 0 0 12px;
+	padding: 8px 12px;
+	border-left: 4px solid #dba617;
+	background: #fcf9e8;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
 /* Comment Thread */
 .wpai-card-thread {
 	padding: 12px 14px;

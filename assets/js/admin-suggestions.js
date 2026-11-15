@@ -205,6 +205,59 @@
 	}
 
 	/**
+	 * Show or hide the complete article with the suggestion highlighted in place.
+	 * The preview is fetched on first open and kept for later toggles.
+	 *
+	 * @param {HTMLElement} button Toggle button inside a suggestion card.
+	 */
+	async function toggleArticlePreview( button ) {
+		const card = button.closest( '.wpai-suggestion-card' );
+		const panel = card ? card.querySelector( '.wpai-article-preview' ) : null;
+		const label = button.querySelector( '.wpai-btn-preview-label' );
+		if ( ! panel ) {
+			return;
+		}
+
+		const i18n = config.i18n || {};
+		const opening = panel.hidden;
+		panel.hidden = ! opening;
+		button.setAttribute( 'aria-expanded', opening ? 'true' : 'false' );
+		if ( label ) {
+			label.textContent = opening ? ( i18n.hideArticle || 'Hide full article' ) : ( i18n.showArticle || 'Show in full article' );
+		}
+		if ( ! opening || panel.dataset.loaded === '1' ) {
+			return;
+		}
+
+		panel.setAttribute( 'aria-busy', 'true' );
+		panel.textContent = i18n.loadingArticle || 'Loading article…';
+		try {
+			const data = await apiRequest( '/suggestions/' + card.dataset.suggestionId + '/preview', 'GET' );
+			panel.innerHTML = '';
+			if ( data.notice ) {
+				const notice = document.createElement( 'p' );
+				notice.className = 'wpai-preview-notice';
+				notice.textContent = data.notice;
+				panel.appendChild( notice );
+			}
+			const article = document.createElement( 'div' );
+			article.className = 'wpai-preview-article';
+			article.innerHTML = data.html; // Server-side filtered with wp_kses_post.
+			panel.appendChild( article );
+			panel.dataset.loaded = '1';
+
+			const change = article.querySelector( '.wpai-preview-change' );
+			if ( change ) {
+				panel.scrollTop = Math.max( 0, change.offsetTop - panel.clientHeight / 3 );
+			}
+		} catch ( err ) {
+			panel.textContent = err.message;
+		} finally {
+			panel.removeAttribute( 'aria-busy' );
+		}
+	}
+
+	/**
 	 * Attach delegated event listeners for filter tabs and card actions.
 	 */
 	function initEvents() {
@@ -229,6 +282,13 @@
 						card.style.display = 'none';
 					}
 				} );
+				return;
+			}
+
+			// Show / hide the full article.
+			const previewBtn = event.target.closest( '.wpai-btn-preview' );
+			if ( previewBtn ) {
+				toggleArticlePreview( previewBtn );
 				return;
 			}
 

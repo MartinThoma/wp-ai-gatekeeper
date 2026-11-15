@@ -30,6 +30,7 @@ require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-auth.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-diff.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-markup-guard.php';
+require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-preview.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-suggestion-service.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-rest-controller.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/admin/class-meta-box.php';

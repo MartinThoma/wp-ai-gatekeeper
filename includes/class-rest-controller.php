@@ -266,6 +266,19 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			)
 		);
 
+		// Suggestion shown inside the complete rendered article.
+		register_rest_route(
+			$this->namespace,
+			'/suggestions/(?P<id>\d+)/preview',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_suggestion_preview' ),
+					'permission_callback' => array( $this, 'list_suggestions_permissions_check' ),
+				),
+			)
+		);
+
 		// Add dialogue comment on a suggestion.
 		register_rest_route(
 			$this->namespace,
@@ -917,6 +930,35 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 		}
 
 		return new WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * Renders the complete article with the suggestion highlighted in place.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_suggestion_preview( $request ) {
+		$row  = WP_AI_Gatekeeper_Database::get_suggestion( (int) $request['id'] );
+		$post = $row ? get_post( (int) $row->post_id ) : null;
+		if ( ! $row || ! $post ) {
+			return new WP_Error(
+				'suggestion_not_found',
+				__( 'Suggestion not found.', 'wp-ai-gatekeeper' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$can_read = WP_AI_Gatekeeper_Auth::is_ai_user() || current_user_can( 'read_post', $post->ID );
+		if ( ! $can_read || ( post_password_required( $post ) && ! current_user_can( 'edit_post', $post->ID ) ) ) {
+			return new WP_Error(
+				'rest_forbidden',
+				__( 'You do not have permission to view this article.', 'wp-ai-gatekeeper' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return new WP_REST_Response( WP_AI_Gatekeeper_Preview::build( $row, $post ), 200 );
 	}
 
 	/**
