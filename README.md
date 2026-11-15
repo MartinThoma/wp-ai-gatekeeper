@@ -27,13 +27,18 @@
 
 ## Installation
 
-Requires **WordPress 6.0+** and **PHP 7.4+**.
+Requires **WordPress 6.0+**, **PHP 7.4+**, and an administrator account that may install
+plugins. Some managed hosts block plugin uploads; use WP-CLI or the host's own plugin panel
+there.
 
 ### 1. Install and activate the plugin
 
 **From the WordPress admin (no command line needed):**
 
 1. Download **[wp-ai-gatekeeper.zip](https://github.com/MartinThoma/wp-ai-gatekeeper/releases/latest/download/wp-ai-gatekeeper.zip)** from the latest release.
+   On the release page, use the **wp-ai-gatekeeper.zip** asset, not GitHub's
+   "Source code (zip)": that one unpacks into a version-numbered folder and is not the signed
+   release build.
 2. In WP Admin, go to **Plugins → Add New Plugin → Upload Plugin**, choose the zip, and click **Install Now**.
 3. Click **Activate**.
 
@@ -69,8 +74,15 @@ wrong or revoked. If your site uses plain permalinks (`?p=123`), use
 Suggestions from your agent show up under **AI Gatekeeper → Suggestions Queue** and in the
 post editor, where editors can comment, merge, or reject them.
 
+### 4. Optional: automatic updates
+
+In **Plugins**, click **Enable auto-updates** in the plugin's row to install new releases
+automatically. Only releases signed with the project's release key are installed (see
+[Updates](#updates)).
+
 *Want to try it without touching a real site? `make up` starts a local WordPress with the plugin
-in Docker; see [docs/how-to-contribute.md](docs/how-to-contribute.md).*
+in Docker; see [docs/how-to-contribute.md](docs/how-to-contribute.md). That site already runs
+the plugin from your checkout, so don't install the zip there.*
 
 ---
 
