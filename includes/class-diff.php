@@ -125,7 +125,7 @@ class WP_AI_Gatekeeper_Diff {
 
 		$prefix = 0;
 		while ( $prefix < $old_len && $prefix < $new_len && $old_tokens[ $prefix ] === $new_tokens[ $prefix ] ) {
-			$prefix++;
+			++$prefix;
 		}
 
 		$suffix = 0;
@@ -134,7 +134,7 @@ class WP_AI_Gatekeeper_Diff {
 			&& $suffix < ( $new_len - $prefix )
 			&& $old_tokens[ $old_len - 1 - $suffix ] === $new_tokens[ $new_len - 1 - $suffix ]
 		) {
-			$suffix++;
+			++$suffix;
 		}
 
 		$ops = array();
@@ -198,20 +198,20 @@ class WP_AI_Gatekeeper_Diff {
 							'type' => 'equal',
 							'text' => $mid_old[ $i ],
 						);
-						$i++;
-						$j++;
+						++$i;
+						++$j;
 					} elseif ( $dp[ $i + 1 ][ $j ] >= $dp[ $i ][ $j + 1 ] ) {
 						$ops[] = array(
 							'type' => 'delete',
 							'text' => $mid_old[ $i ],
 						);
-						$i++;
+						++$i;
 					} else {
 						$ops[] = array(
 							'type' => 'insert',
 							'text' => $mid_new[ $j ],
 						);
-						$j++;
+						++$j;
 					}
 				}
 
@@ -220,7 +220,7 @@ class WP_AI_Gatekeeper_Diff {
 						'type' => 'delete',
 						'text' => $mid_old[ $i ],
 					);
-					$i++;
+					++$i;
 				}
 
 				while ( $j < $n ) {
@@ -228,7 +228,7 @@ class WP_AI_Gatekeeper_Diff {
 						'type' => 'insert',
 						'text' => $mid_new[ $j ],
 					);
-					$j++;
+					++$j;
 				}
 			}
 		}

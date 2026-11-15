@@ -36,7 +36,7 @@ class WP_AI_Gatekeeper_Admin_Menu {
 				'per_page' => 200,
 			)
 		);
-		$open_count = count( $open_suggestions );
+		$open_count       = count( $open_suggestions );
 
 		$menu_title = __( 'AI Gatekeeper', 'wp-ai-gatekeeper' );
 		if ( $open_count > 0 ) {
@@ -214,13 +214,13 @@ class WP_AI_Gatekeeper_Admin_Menu {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'wp-ai-gatekeeper' ) );
 		}
 
-		$new_key  = get_transient( 'wpai_new_api_key_' . get_current_user_id() );
+		$new_key = get_transient( 'wpai_new_api_key_' . get_current_user_id() );
 		if ( $new_key ) {
 			delete_transient( 'wpai_new_api_key_' . get_current_user_id() );
 		}
 
-		$keys     = WP_AI_Gatekeeper_Auth::list_api_keys();
-		$ai_users = get_users(
+		$keys               = WP_AI_Gatekeeper_Auth::list_api_keys();
+		$ai_users           = get_users(
 			array(
 				'role' => WP_AI_Gatekeeper_Auth::ROLE_SLUG,
 			)
@@ -342,9 +342,9 @@ class WP_AI_Gatekeeper_Admin_Menu {
 					<?php else : ?>
 						<?php foreach ( $keys as $key_row ) : ?>
 							<?php
-							$key_user   = ! empty( $key_row['user_id'] ) ? get_userdata( (int) $key_row['user_id'] ) : false;
-							$is_active  = empty( $key_row['revoked'] );
-							$key_label  = isset( $key_row['name'] ) ? $key_row['name'] : ( isset( $key_row['label'] ) ? $key_row['label'] : '' );
+							$key_user  = ! empty( $key_row['user_id'] ) ? get_userdata( (int) $key_row['user_id'] ) : false;
+							$is_active = empty( $key_row['revoked'] );
+							$key_label = isset( $key_row['name'] ) ? $key_row['name'] : ( isset( $key_row['label'] ) ? $key_row['label'] : '' );
 							?>
 							<tr>
 								<td><strong><?php echo esc_html( $key_label ); ?></strong></td>
