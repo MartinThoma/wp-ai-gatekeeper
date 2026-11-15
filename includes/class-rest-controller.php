@@ -781,7 +781,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 
 			$attachment_id = $this->insert_attachment_from_upload( $movefile, $parent_id, $request );
 		} else {
-			$raw_body = $request->get_body();
+			$raw_body = (string) $request->get_body(); // Null for internally built requests.
 			if ( '' === $raw_body ) {
 				return new WP_Error(
 					'missing_media_file',

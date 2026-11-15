@@ -354,6 +354,16 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			);
 		}
 
+		// Check the article exists first: a permission error would be misleading.
+		$post = get_post( (int) $suggestion->post_id );
+		if ( ! $post ) {
+			return new WP_Error(
+				'post_not_found',
+				__( 'Target article no longer exists.', 'wp-ai-gatekeeper' ),
+				array( 'status' => 404 )
+			);
+		}
+
 		if ( ! user_can( $user_id, 'edit_post', (int) $suggestion->post_id ) ) {
 			return new WP_Error(
 				'merge_forbidden',
@@ -375,15 +385,6 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 				'suggestion_not_open',
 				__( 'Only open suggestions can be merged.', 'wp-ai-gatekeeper' ),
 				array( 'status' => 409 )
-			);
-		}
-
-		$post = get_post( (int) $suggestion->post_id );
-		if ( ! $post ) {
-			return new WP_Error(
-				'post_not_found',
-				__( 'Target article no longer exists.', 'wp-ai-gatekeeper' ),
-				array( 'status' => 404 )
 			);
 		}
 

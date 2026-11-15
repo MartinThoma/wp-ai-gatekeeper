@@ -57,6 +57,65 @@ abstract class WP_AI_Gatekeeper_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Request headers that tests may set; cleared after every test.
+	 *
+	 * @var string[]
+	 */
+	const AUTH_SERVER_KEYS = array( 'HTTP_X_WP_AI_KEY', 'HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION' );
+
+	/**
+	 * Clear per-request auth state so one test's login cannot leak into the next.
+	 *
+	 * @return void
+	 */
+	public function tear_down() {
+		foreach ( self::AUTH_SERVER_KEYS as $key ) {
+			unset( $_SERVER[ $key ] );
+		}
+		$this->reset_auth_state();
+		parent::tear_down();
+	}
+
+	/**
+	 * Reset WP_AI_Gatekeeper_Auth's static per-request state.
+	 *
+	 * @return void
+	 */
+	protected function reset_auth_state() {
+		$defaults = array(
+			'is_ai_key_request' => false,
+			'active_key_id'     => null,
+			'auth_error'        => null,
+			'determining_user'  => false,
+		);
+		foreach ( $defaults as $name => $value ) {
+			$property = new ReflectionProperty( 'WP_AI_Gatekeeper_Auth', $name );
+			$property->setAccessible( true );
+			$property->setValue( null, $value );
+		}
+	}
+
+	/**
+	 * Authenticate like a real request: set server headers, then let WordPress
+	 * determine the current user (runs the determine_current_user filter).
+	 *
+	 * @param array $server $_SERVER entries, e.g. array( 'HTTP_X_WP_AI_KEY' => $key ).
+	 * @return int The resulting current user ID.
+	 */
+	protected function authenticate_with( array $server ) {
+		foreach ( self::AUTH_SERVER_KEYS as $key ) {
+			unset( $_SERVER[ $key ] );
+		}
+		foreach ( $server as $key => $value ) {
+			$_SERVER[ $key ] = $value;
+		}
+		$this->reset_auth_state();
+
+		$GLOBALS['current_user'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Forces WordPress to determine the user again.
+		return wp_get_current_user()->ID;
+	}
+
+	/**
 	 * Dispatch a REST request as the AI agent or as a human editor.
 	 *
 	 * @param string $method HTTP method.
