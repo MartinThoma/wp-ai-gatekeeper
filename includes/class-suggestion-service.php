@@ -70,22 +70,20 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			);
 		}
 
-		$field_content = (string) $post->{$target_field};
-		$dry_run       = WP_AI_Gatekeeper_Diff::apply_suggestion_to_text(
-			$field_content,
+		$dry_run = self::apply_guarded(
+			(string) $post->{$target_field},
+			$target_field,
 			$original_text,
 			$suggested_text,
 			$context_before,
-			$context_after
+			$context_after,
+			$user_id
 		);
 
 		if ( is_wp_error( $dry_run ) ) {
-			return new WP_Error(
-				'original_text_not_found',
-				$dry_run->get_error_message(),
-				array( 'status' => 422 )
-			);
+			return self::as_dry_run_error( $dry_run );
 		}
+		$suggested_text = $dry_run['suggested_text'];
 
 		$suggestion_id = WP_AI_Gatekeeper_Database::insert_suggestion(
 			array(
@@ -200,21 +198,22 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			);
 		}
 
-		$dry_run = WP_AI_Gatekeeper_Diff::apply_suggestion_to_text(
+		// Guarded with the suggestion author's capabilities: an AI suggestion stays
+		// filtered even when a trusted human edits it.
+		$dry_run = self::apply_guarded(
 			(string) $post->{$suggestion->target_field},
+			$suggestion->target_field,
 			$new_original,
 			$new_suggested,
 			$new_pre,
-			$new_post_ctx
+			$new_post_ctx,
+			(int) $suggestion->author_user_id
 		);
 
 		if ( is_wp_error( $dry_run ) ) {
-			return new WP_Error(
-				'original_text_not_found',
-				$dry_run->get_error_message(),
-				array( 'status' => 422 )
-			);
+			return self::as_dry_run_error( $dry_run );
 		}
+		$new_suggested = $dry_run['suggested_text'];
 
 		$update_res = WP_AI_Gatekeeper_Database::update_suggestion(
 			$suggestion->id,
@@ -388,13 +387,17 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			);
 		}
 
+		// Re-checked against the current content: the context of the span may have
+		// changed since the suggestion was made, and older rows were never filtered.
 		$target_field = $suggestion->target_field;
-		$applied      = WP_AI_Gatekeeper_Diff::apply_suggestion_to_text(
+		$applied      = self::apply_guarded(
 			(string) $post->{$target_field},
+			$target_field,
 			(string) $suggestion->original_text,
 			(string) $suggestion->suggested_text,
 			(string) ( $suggestion->context_before ?? '' ),
-			(string) ( $suggestion->context_after ?? '' )
+			(string) ( $suggestion->context_after ?? '' ),
+			(int) $suggestion->author_user_id
 		);
 
 		if ( is_wp_error( $applied ) ) {
@@ -420,17 +423,19 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			$revision_id = (int) $latest_rev->ID;
 		}
 
-		$now = current_time( 'mysql', true );
-		WP_AI_Gatekeeper_Database::update_suggestion(
-			$suggestion->id,
-			array(
-				'status'             => self::STATUS_MERGED,
-				'merged_by'          => absint( $user_id ),
-				'merged_at'          => $now,
-				'merged_revision_id' => $revision_id > 0 ? $revision_id : null,
-				'updated_at'         => $now,
-			)
+		$now          = current_time( 'mysql', true );
+		$merge_update = array(
+			'status'             => self::STATUS_MERGED,
+			'merged_by'          => absint( $user_id ),
+			'merged_at'          => $now,
+			'merged_revision_id' => $revision_id > 0 ? $revision_id : null,
+			'updated_at'         => $now,
 		);
+		if ( $applied['suggested_text'] !== (string) $suggestion->suggested_text ) {
+			// Record exactly what was merged (only differs for pre-guard rows).
+			$merge_update['suggested_text'] = $applied['suggested_text'];
+		}
+		WP_AI_Gatekeeper_Database::update_suggestion( $suggestion->id, $merge_update );
 
 		$actor        = self::resolve_actor_info( $user_id );
 		$comment_body = trim( (string) $comment );
@@ -620,12 +625,14 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 		$conflict_msg  = null;
 
 		if ( self::STATUS_OPEN === $row->status && $post ) {
-			$check = WP_AI_Gatekeeper_Diff::apply_suggestion_to_text(
+			$check = self::apply_guarded(
 				(string) $post->{$row->target_field},
+				(string) $row->target_field,
 				(string) $row->original_text,
 				(string) $row->suggested_text,
 				(string) ( $row->context_before ?? '' ),
-				(string) ( $row->context_after ?? '' )
+				(string) ( $row->context_after ?? '' ),
+				(int) $row->author_user_id
 			);
 			if ( is_wp_error( $check ) ) {
 				$is_applicable = false;
@@ -685,6 +692,66 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			'diff_html'          => WP_AI_Gatekeeper_Diff::render_inline_html( $row->original_text, $row->suggested_text ),
 			'comments'           => $formatted_comments,
 		);
+	}
+
+	/**
+	 * Dry-runs a suggestion against field content, enforcing the markup guard
+	 * when the author lacks unfiltered_html (always the case for AI users).
+	 *
+	 * @param string $content        Current field content.
+	 * @param string $target_field   Target field.
+	 * @param string $original_text  Text to replace.
+	 * @param string $suggested_text Replacement text.
+	 * @param string $context_before Optional preceding context.
+	 * @param string $context_after  Optional trailing context.
+	 * @param int    $author_id      Suggestion author's user ID.
+	 * @return array|WP_Error Diff::apply_suggestion_to_text() result plus the
+	 *                        (possibly filtered) 'suggested_text'.
+	 */
+	private static function apply_guarded( $content, $target_field, $original_text, $suggested_text, $context_before, $context_after, $author_id ) {
+		$trusted   = WP_AI_Gatekeeper_Markup_Guard::is_trusted_author( $author_id );
+		$sanitized = $trusted ? $suggested_text : WP_AI_Gatekeeper_Markup_Guard::sanitize( $suggested_text, $target_field );
+
+		if ( $sanitized !== $suggested_text && $sanitized === $original_text ) {
+			return new WP_Error(
+				'suggestion_unsafe_markup',
+				__( 'The suggestion only changes HTML that AI suggestions are not allowed to add.', 'wp-ai-gatekeeper' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$applied = WP_AI_Gatekeeper_Diff::apply_suggestion_to_text( $content, $original_text, $sanitized, $context_before, $context_after );
+		if ( is_wp_error( $applied ) ) {
+			return $applied;
+		}
+
+		if ( ! $trusted ) {
+			$span = WP_AI_Gatekeeper_Markup_Guard::check_span(
+				$content,
+				$applied['offset'],
+				$applied['length'],
+				WP_AI_Gatekeeper_Markup_Guard::is_markup_edit( $original_text, $sanitized )
+			);
+			if ( is_wp_error( $span ) ) {
+				return $span;
+			}
+		}
+
+		$applied['suggested_text'] = $sanitized;
+		return $applied;
+	}
+
+	/**
+	 * Maps a dry-run failure to a REST error, keeping guard errors distinct.
+	 *
+	 * @param WP_Error $error Dry-run error.
+	 * @return WP_Error
+	 */
+	private static function as_dry_run_error( WP_Error $error ) {
+		if ( 'suggestion_unsafe_markup' === $error->get_error_code() ) {
+			return $error;
+		}
+		return new WP_Error( 'original_text_not_found', $error->get_error_message(), array( 'status' => 422 ) );
 	}
 
 	/**

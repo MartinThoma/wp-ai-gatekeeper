@@ -290,7 +290,7 @@ class WP_AI_Gatekeeper_Diff {
 	 * @param string $suggested_text Replacement text.
 	 * @param string $context_before Optional preceding text for disambiguation.
 	 * @param string $context_after  Optional trailing text for disambiguation.
-	 * @return array{content: string, match_count: int}|WP_Error
+	 * @return array{content: string, match_count: int, offset: int, length: int}|WP_Error Offset/length locate the replaced span in $content.
 	 */
 	public static function apply_suggestion_to_text( $content, $original_text, $suggested_text, $context_before = '', $context_after = '' ) {
 		$content        = (string) $content;
@@ -340,6 +340,8 @@ class WP_AI_Gatekeeper_Diff {
 					return array(
 						'content'     => $updated,
 						'match_count' => substr_count( $content, $needle ),
+						'offset'      => $replace_offset,
+						'length'      => strlen( $attempt['orig'] ),
 					);
 				}
 			} else {
@@ -349,6 +351,8 @@ class WP_AI_Gatekeeper_Diff {
 					return array(
 						'content'     => $updated,
 						'match_count' => substr_count( $content, $attempt['orig'] ),
+						'offset'      => $pos,
+						'length'      => strlen( $attempt['orig'] ),
 					);
 				}
 			}

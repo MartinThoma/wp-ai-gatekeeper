@@ -136,6 +136,14 @@ curl -s -X POST http://localhost:8080/wp-json/ai-gatekeeper/v1/posts/10/suggesti
   }'
 ```
 
+> **Markup in AI suggestions:** merging runs as the human reviewer, so the plugin filters AI
+> suggestions itself, the same way WordPress filters a Contributor's edits. Disallowed HTML
+> (e.g. `<script>`, `onclick=`, `javascript:` links) is stripped from `suggested_text`, and
+> suggestions that would change text *inside* an HTML tag, attribute, or `<script>`/`<style>`
+> block are rejected with `422 suggestion_unsafe_markup`; suggest a replacement for the whole
+> element instead. Plain-text edits work anywhere, and trusted markup elsewhere in the post
+> is left untouched.
+
 ### 4. Dialogue Between Human Editor and AI Agent
 
 - **Human Editor** reviews the visual word-level diff inside:
