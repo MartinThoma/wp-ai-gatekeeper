@@ -29,13 +29,14 @@ test: ## Run PHPUnit in Docker (ARGS="--filter foo", PHP_VERSION=7.4, WP_VERSION
 	docker compose --profile test build tests
 	docker compose --profile test run --rm tests $(ARGS)
 
-coverage: ## Run PHPUnit with code coverage (text summary + HTML report in coverage/)
+coverage: ## Run PHPUnit with coverage (HTML in coverage/); fails below the CI minimum
 	docker compose --profile test build tests
 	mkdir -p coverage
 	docker compose --profile test run --rm -v "$(CURDIR)/coverage:/coverage" --entrypoint sh tests -c \
-		'php -d pcov.enabled=1 -d pcov.directory=/app /opt/composer/vendor/bin/phpunit --coverage-text --coverage-html /coverage $(ARGS); \
+		'php -d pcov.enabled=1 -d pcov.directory=/app /opt/composer/vendor/bin/phpunit --coverage-text --coverage-html /coverage --coverage-clover /coverage/clover.xml $(ARGS); \
 		status=$$?; chown -R $(shell id -u):$(shell id -g) /coverage; exit $$status'
 	@echo "HTML report: coverage/index.html"
+	python3 bin/check-coverage.py coverage/clover.xml
 
 cs: ## Check PHP against WordPress Coding Standards (needs: composer install)
 	vendor/bin/phpcs

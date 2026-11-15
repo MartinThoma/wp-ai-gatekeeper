@@ -58,7 +58,8 @@ make dist                    # Build dist/wp-ai-gatekeeper.zip from HEAD
   matching WordPress test suite) and starts a throwaway MariaDB on tmpfs. The plugin is
   mounted read-only, so tests never write into the working tree. `make down` stops the test DB.
   `make coverage` runs the suite with PCOV and prints a summary; open `coverage/index.html`
-  for line-by-line detail. Code that runs while the plugin loads (the main plugin file,
+  for line-by-line detail. It fails if line coverage drops below the minimum in
+  `bin/check-coverage.py` (currently 85%); CI enforces the same minimum. Code that runs while the plugin loads (the main plugin file,
   hook registration) shows as uncovered because it executes before the tests start.
   Tests live in `tests/phpunit/`; extend `WP_AI_Gatekeeper_TestCase` for the shared editor,
   AI user, API key, and REST helpers.
@@ -78,6 +79,7 @@ make dist                    # Build dist/wp-ai-gatekeeper.zip from HEAD
   1. Static syntax & structural verification (`tests/test-plugin-verification.py` + `php -l`)
   2. WordPress Coding Standards (`phpcs`)
   3. The PHPUnit suite against MariaDB across PHP 7.4–8.3 and WordPress 6.5 / latest
+  4. Code coverage on PHP 8.3, failing below the minimum in `bin/check-coverage.py`
 
 ## Releasing
 
