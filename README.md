@@ -67,6 +67,7 @@ make reset     # Wipe volumes and rebuild a clean WordPress instance from scratc
 make logs      # Tail container logs
 make verify    # Run static & structural verification tests
 make test      # Run the PHPUnit integration suite in Docker
+make cs        # Check WordPress Coding Standards (make cs-fix to auto-fix)
 make wp CMD="plugin list"  # Run any WP-CLI command inside the container
 ```
 
@@ -181,6 +182,14 @@ When the human clicks **Merge Suggestion** in WP Admin (or calls `POST /wp-json/
   The first run builds a test image (PHP, `mysqli`, Composer dev dependencies, and the
   matching WordPress test suite) and starts a throwaway MariaDB on tmpfs. The plugin is
   mounted read-only, so tests never write into the working tree. `make down` stops the test DB.
+- **Coding standards (WordPress Coding Standards + PHP 7.4 compatibility):**
+  ```bash
+  composer install        # once; needs PHP with xml + mbstring
+  pre-commit install      # once; runs phpcbf + phpcs on staged PHP files
+  make cs                 # check everything
+  make cs-fix             # auto-fix what phpcbf can
+  ```
+  Rules live in `phpcs.xml.dist`; CI runs the same `phpcs` check.
 - **Fast Structural Verification (Python 3):**
   ```bash
   make verify
@@ -188,7 +197,8 @@ When the human clicks **Merge Suggestion** in WP Admin (or calls `POST /wp-json/
 - **GitHub Actions CI (`.github/workflows/ci.yml`):**
   Automatically runs on every Pull Request and push to `main`:
   1. Static syntax & structural verification (`tests/test-plugin-verification.py` + `php -l`)
-  2. Full WordPress + MariaDB integration test suite via PHPUnit (`tests/phpunit/`) across PHP 7.4–8.3 and WordPress 6.5 / latest.
+  2. WordPress Coding Standards (`phpcs`)
+  3. Full WordPress + MariaDB integration test suite via PHPUnit (`tests/phpunit/`) across PHP 7.4–8.3 and WordPress 6.5 / latest.
 
 Open work is tracked in [ROADMAP.md](ROADMAP.md).
 

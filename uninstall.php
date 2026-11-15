@@ -11,7 +11,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
-$delete_data = (bool) get_option( 'wp_ai_gatekeeper_delete_data_on_uninstall', false );
+$wp_ai_gatekeeper_delete_data = (bool) get_option( 'wp_ai_gatekeeper_delete_data_on_uninstall', false );
 
 delete_option( 'wp_ai_gatekeeper_api_keys' );
 delete_option( 'wp_ai_gatekeeper_db_version' );
@@ -21,12 +21,12 @@ delete_option( 'wp_ai_gatekeeper_delete_data_on_uninstall' );
 
 remove_role( 'ai_contributor' );
 
-if ( $delete_data ) {
-	$suggestions_table = $wpdb->prefix . 'ai_suggestions';
-	$comments_table    = $wpdb->prefix . 'ai_suggestion_comments';
+if ( $wp_ai_gatekeeper_delete_data ) {
+	$wp_ai_gatekeeper_suggestions_table = $wpdb->prefix . 'ai_suggestions';
+	$wp_ai_gatekeeper_comments_table    = $wpdb->prefix . 'ai_suggestion_comments';
 
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-	$wpdb->query( "DROP TABLE IF EXISTS {$comments_table}" );
+	$wpdb->query( "DROP TABLE IF EXISTS {$wp_ai_gatekeeper_comments_table}" );
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-	$wpdb->query( "DROP TABLE IF EXISTS {$suggestions_table}" );
+	$wpdb->query( "DROP TABLE IF EXISTS {$wp_ai_gatekeeper_suggestions_table}" );
 }

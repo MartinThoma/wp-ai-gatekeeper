@@ -24,6 +24,8 @@ EXPECTED_FILES = [
     "phpunit.xml.dist",
     "bin/install-wp-tests.sh",
     "tests/Dockerfile",
+    "phpcs.xml.dist",
+    ".pre-commit-config.yaml",
     ".github/workflows/ci.yml",
     "includes/class-database.php",
     "includes/class-auth.php",

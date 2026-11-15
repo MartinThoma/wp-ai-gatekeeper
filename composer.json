@@ -7,15 +7,22 @@
 		"php": ">=7.4"
 	},
 	"require-dev": {
+		"dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+		"phpcompatibility/phpcompatibility-wp": "^2.1",
 		"phpunit/phpunit": "^9.6",
+		"wp-coding-standards/wpcs": "^3.1",
 		"yoast/phpunit-polyfills": "^2.0"
 	},
 	"scripts": {
 		"test:verify": "python3 tests/test-plugin-verification.py",
-		"test:unit": "phpunit"
+		"test:unit": "phpunit",
+		"lint:php": "phpcs",
+		"format:php": "phpcbf"
 	},
 	"config": {
-		"allow-plugins": true,
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		},
 		"sort-packages": true
 	}
 }

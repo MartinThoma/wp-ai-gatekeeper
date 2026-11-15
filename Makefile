@@ -1,4 +1,4 @@
-.PHONY: help up down restart reset logs wp verify lint test shell
+.PHONY: help up down restart reset logs wp verify lint test cs cs-fix shell
 
 help: ## Show available Make commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -28,6 +28,12 @@ verify: ## Run Python static & structural verification checks
 test: ## Run PHPUnit in Docker (ARGS="--filter foo", PHP_VERSION=7.4, WP_VERSION=6.5)
 	docker compose --profile test build tests
 	docker compose --profile test run --rm tests $(ARGS)
+
+cs: ## Check PHP against WordPress Coding Standards (needs: composer install)
+	vendor/bin/phpcs
+
+cs-fix: ## Auto-fix WordPress Coding Standards violations
+	vendor/bin/phpcbf || [ $$? -eq 1 ]
 
 lint: ## Run PHP syntax linter inside the WordPress Docker container
 	docker compose exec wordpress sh -c 'find /var/www/html/wp-content/plugins/wp-ai-gatekeeper -name "*.php" -not -path "*/vendor/*" -print0 | xargs -0 -n1 php -l'

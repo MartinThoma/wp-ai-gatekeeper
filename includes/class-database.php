@@ -341,9 +341,9 @@ class WP_AI_Gatekeeper_Database {
 		global $wpdb;
 
 		$table = self::get_comments_table();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return $wpdb->get_results(
 			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is $wpdb->prefix + constant.
 				"SELECT * FROM {$table} WHERE suggestion_id = %d ORDER BY created_at ASC, id ASC",
 				absint( $suggestion_id )
 			)

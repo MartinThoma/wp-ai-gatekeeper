@@ -442,7 +442,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 				);
 			}
 
-			if ( (int) $post->post_author !== get_current_user_id() || 'draft' !== $post->post_status ) {
+			if ( get_current_user_id() !== (int) $post->post_author || 'draft' !== $post->post_status ) {
 				return new WP_Error(
 					'rest_ai_cannot_edit_post',
 					__( 'AI agents can only directly edit their own draft articles. Submit a suggestion via /ai-gatekeeper/v1/posts/{id}/suggestions instead.', 'wp-ai-gatekeeper' ),
@@ -797,9 +797,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 
 			$movefile = wp_handle_sideload( $sideload, array( 'test_form' => false ) );
 			if ( isset( $movefile['error'] ) ) {
-				if ( file_exists( $tmp_file ) ) {
-					@unlink( $tmp_file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				}
+				wp_delete_file( $tmp_file );
 				return new WP_Error(
 					'media_upload_failed',
 					$movefile['error'],
@@ -1020,7 +1018,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			'is_ai_authored'         => WP_AI_Gatekeeper_Auth::is_ai_user( (int) $post->post_author ),
 			'excerpt'                => (string) $post->post_excerpt,
 			'content_raw'            => (string) $post->post_content,
-			'content_rendered'       => apply_filters( 'the_content', $post->post_content ),
+			'content_rendered'       => apply_filters( 'the_content', $post->post_content ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter.
 			'featured_media'         => (int) get_post_thumbnail_id( $post->ID ),
 			'date_gmt'               => (string) $post->post_date_gmt,
 			'modified_gmt'           => (string) $post->post_modified_gmt,

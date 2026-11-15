@@ -59,10 +59,10 @@ class WP_AI_Gatekeeper_Permissions {
 		add_filter( 'map_meta_cap', array( __CLASS__, 'filter_map_meta_cap' ), 20, 4 );
 		add_filter( 'rest_pre_dispatch', array( __CLASS__, 'filter_rest_pre_dispatch' ), 10, 3 );
 		add_filter( 'rest_post_query', array( __CLASS__, 'allow_ai_read_drafts_in_wp_v2' ), 10, 2 );
-		add_filter( 'wp_insert_post_data', array( __CLASS__, 'filter_wp_insert_post_data' ), 20, 2 );
+		add_filter( 'wp_insert_post_data', array( __CLASS__, 'filter_wp_insert_post_data' ), 20, 1 );
 		add_filter( 'wp_insert_post_empty_content', array( __CLASS__, 'block_unauthorized_ai_post_save' ), 20, 2 );
 		add_filter( 'preprocess_comment', array( __CLASS__, 'block_ai_comment_creation' ), 1 );
-		add_filter( 'pre_comment_approved', array( __CLASS__, 'block_ai_comment_approval' ), 1, 2 );
+		add_filter( 'pre_comment_approved', array( __CLASS__, 'block_ai_comment_approval' ), 1, 1 );
 	}
 
 	/**
@@ -194,7 +194,7 @@ class WP_AI_Gatekeeper_Permissions {
 						);
 					}
 
-					if ( (int) $post->post_author !== get_current_user_id() || 'draft' !== $post->post_status ) {
+					if ( get_current_user_id() !== (int) $post->post_author || 'draft' !== $post->post_status ) {
 						return new WP_Error(
 							'rest_ai_cannot_edit_post',
 							__( 'AI agents can only edit their own draft articles. Submit a change suggestion via /ai-gatekeeper/v1/posts/{id}/suggestions instead.', 'wp-ai-gatekeeper' ),
@@ -242,11 +242,10 @@ class WP_AI_Gatekeeper_Permissions {
 	/**
 	 * Forces AI-created/edited posts to remain in 'draft' status at the DB write boundary.
 	 *
-	 * @param array $data    Slashed post data.
-	 * @param array $postarr Raw post array.
+	 * @param array $data Slashed post data.
 	 * @return array
 	 */
-	public static function filter_wp_insert_post_data( $data, $postarr ) {
+	public static function filter_wp_insert_post_data( $data ) {
 		if ( ! WP_AI_Gatekeeper_Auth::is_ai_user() ) {
 			return $data;
 		}
@@ -277,7 +276,7 @@ class WP_AI_Gatekeeper_Permissions {
 			$parent = get_post( (int) $postarr['post_parent'] );
 			if ( $parent
 				&& 'post' === $parent->post_type
-				&& (int) $parent->post_author === get_current_user_id()
+				&& get_current_user_id() === (int) $parent->post_author
 				&& 'draft' === $parent->post_status
 			) {
 				return $maybe_empty;
@@ -296,11 +295,11 @@ class WP_AI_Gatekeeper_Permissions {
 			}
 
 			if ( 'attachment' === $existing->post_type ) {
-				return (int) $existing->post_author !== get_current_user_id();
+				return get_current_user_id() !== (int) $existing->post_author;
 			}
 
 			if ( 'post' === $existing->post_type ) {
-				if ( (int) $existing->post_author !== get_current_user_id() || 'draft' !== $existing->post_status ) {
+				if ( get_current_user_id() !== (int) $existing->post_author || 'draft' !== $existing->post_status ) {
 					return true;
 				}
 			}
@@ -329,11 +328,10 @@ class WP_AI_Gatekeeper_Permissions {
 	/**
 	 * Blocks AI users from approving or inserting comments.
 	 *
-	 * @param int|string|WP_Error $approved    Approval status.
-	 * @param array               $commentdata Comment data.
+	 * @param int|string|WP_Error $approved Approval status.
 	 * @return int|string|WP_Error
 	 */
-	public static function block_ai_comment_approval( $approved, $commentdata ) {
+	public static function block_ai_comment_approval( $approved ) {
 		if ( WP_AI_Gatekeeper_Auth::is_ai_user() ) {
 			return new WP_Error(
 				'ai_comments_forbidden',
