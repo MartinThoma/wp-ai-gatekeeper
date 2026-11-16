@@ -83,6 +83,7 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 		if ( is_wp_error( $dry_run ) ) {
 			return self::as_dry_run_error( $dry_run );
 		}
+		$submitted_text = $suggested_text;
 		$suggested_text = $dry_run['suggested_text'];
 
 		$suggestion_id = WP_AI_Gatekeeper_Database::insert_suggestion(
@@ -118,7 +119,24 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			);
 		}
 
-		return self::get_suggestion_details( $suggestion_id );
+		return self::with_filter_flag( self::get_suggestion_details( $suggestion_id ), $submitted_text, $suggested_text );
+	}
+
+	/**
+	 * Tells the caller whether the stored suggested_text differs from what it
+	 * submitted (HTML or block attributes the author may not add were removed),
+	 * so an agent does not assume its exact text will be merged.
+	 *
+	 * @param array|WP_Error|null $details   Suggestion details.
+	 * @param string              $submitted Submitted suggested_text.
+	 * @param string              $stored    Stored suggested_text.
+	 * @return array|WP_Error|null
+	 */
+	private static function with_filter_flag( $details, $submitted, $stored ) {
+		if ( is_array( $details ) ) {
+			$details['suggested_text_filtered'] = $submitted !== $stored;
+		}
+		return $details;
 	}
 
 	/**
@@ -214,7 +232,8 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 		if ( is_wp_error( $dry_run ) ) {
 			return self::as_dry_run_error( $dry_run );
 		}
-		$new_suggested = $dry_run['suggested_text'];
+		$submitted_text = $new_suggested;
+		$new_suggested  = $dry_run['suggested_text'];
 
 		$update_res = WP_AI_Gatekeeper_Database::update_suggestion(
 			$suggestion->id,
@@ -246,7 +265,7 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			)
 		);
 
-		return self::get_suggestion_details( $suggestion->id );
+		return self::with_filter_flag( self::get_suggestion_details( $suggestion->id ), $submitted_text, $new_suggested );
 	}
 
 	/**

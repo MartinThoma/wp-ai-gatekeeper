@@ -78,7 +78,71 @@ class WP_AI_Gatekeeper_Markup_Guard {
 			unset( $allowed[ $element ] );
 		}
 
-		return wp_kses( $suggested_text, $allowed );
+		// Core's pre_kses step for block attributes parses the input as a whole
+		// document and serializes it again, which closes blocks the fragment
+		// leaves open (their closer is in the article, outside the replaced span)
+		// and rewrites stray closers. Run kses without it, then filter the block
+		// attributes delimiter by delimiter, keeping the structure as submitted.
+		$priority = has_filter( 'pre_kses', 'wp_pre_kses_block_attributes' );
+		if ( false !== $priority ) {
+			remove_filter( 'pre_kses', 'wp_pre_kses_block_attributes', $priority );
+		}
+		try {
+			$filtered = wp_kses( $suggested_text, $allowed );
+		} finally {
+			if ( false !== $priority ) {
+				add_filter( 'pre_kses', 'wp_pre_kses_block_attributes', $priority, 3 );
+			}
+		}
+
+		return self::filter_block_delimiters( $filtered, $allowed );
+	}
+
+	/**
+	 * Filters the attributes of each block delimiter comment the way core's
+	 * filter_block_kses() does, without re-serializing the block structure.
+	 * Delimiters whose attributes are unchanged keep their exact text.
+	 *
+	 * Block attributes need their own filtering: kses only sees the comment's
+	 * raw text, but the JSON can hide markup as < escapes that dynamic
+	 * blocks would render.
+	 *
+	 * @param string $html    Fragment that already went through kses.
+	 * @param array  $allowed Allowed HTML.
+	 * @return string
+	 */
+	public static function filter_block_delimiters( $html, array $allowed ) {
+		if ( false === strpos( $html, '<!--' ) ) {
+			return $html;
+		}
+
+		// Same delimiter grammar as WP_Block_Parser::next_token().
+		$pattern = '/<!--[ \t\f\r\n]+(?P<closer>\/)?wp:(?P<namespace>[a-z][a-z0-9_-]*\/)?(?P<name>[a-z][a-z0-9_-]*)[ \t\f\r\n]+(?P<attrs>{(?:(?:[^}]+|}+(?=})|(?!}[ \t\f\r\n]+\/?-->).)*+)?}[ \t\f\r\n]+)?(?P<void>\/)?-->/s';
+
+		return (string) preg_replace_callback(
+			$pattern,
+			static function ( $m ) use ( $allowed ) {
+				if ( empty( $m['attrs'] ) ) {
+					return $m[0];
+				}
+
+				$name  = ( '' !== $m['namespace'] ? $m['namespace'] : 'core/' ) . $m['name'];
+				$attrs = json_decode( trim( $m['attrs'] ), true );
+				if ( is_array( $attrs ) ) {
+					$filtered = filter_block_kses_value( $attrs, $allowed, array(), array( 'blockName' => $name ) );
+					if ( $filtered === $attrs ) {
+						return $m[0];
+					}
+					$attrs_text = serialize_block_attributes( $filtered ) . ' ';
+				} else {
+					// Core's parser ignores attributes that are not a JSON object.
+					$attrs_text = '';
+				}
+
+				return '<!-- ' . $m['closer'] . 'wp:' . $m['namespace'] . $m['name'] . ' ' . $attrs_text . ( ! empty( $m['void'] ) ? '/' : '' ) . '-->';
+			},
+			$html
+		);
 	}
 
 	/**

@@ -18,64 +18,40 @@ older content back. WordPress's post lock only warns when a *different* user is 
   since you opened it"; or reject REST saves whose base is older than the last merge (the block
   editor sends no base version, so this needs a hidden field or meta).
 
-### 2. Suggestions with block comments are silently changed on submit
-`WP_AI_Gatekeeper_Markup_Guard::sanitize()` runs `wp_kses()` on the suggested text alone. Core
-hooks `wp_pre_kses_block_attributes` into `pre_kses`, which runs `filter_block_content()`
-(`parse_blocks()` + `serialize_blocks()`) on that fragment. The serializer closes every block
-that is still open *within the fragment*, without knowing that the original text, or the content
-around it, already handles it. Seen in practice:
-- `original_text` = `<!-- wp:heading -->\n<h2>TOP5 …</h2>` (the opener plus the heading; the
-  `<!-- /wp:heading -->` follows after the matched span).
-- `suggested_text` = new paragraph/heading/list blocks followed by the same opener plus `<h2>`.
-- Stored `suggested_text` gained a trailing `<!-- /wp:heading -->` right after `</h2>`. After the
-  merge, the post had two `<!-- /wp:heading -->` in a row.
-  The page renders fine, but the block structure is broken.
-
-The API returns 201 and nothing tells the agent that its text was changed. A stray closer at the
-start of a fragment (or an opener whose closer is outside it) is probably mangled the same way.
-- Sanitize in context: apply the replacement to the full field content and run kses on the
-  result, or compare the block-comment balance before/after and keep the author's comments.
-- If the text still changes, reject with a clear 422 (e.g. `suggestion_block_structure`) instead
-  of storing something different from what was submitted. At minimum, flag the difference in the
-  response.
-- Add a regression test: a suggestion whose `original_text` starts with an opener and whose
-  `suggested_text` inserts blocks before that opener. Its stored text must equal the input, and
-  merging must keep the block comments balanced.
-
 ## Low
 
-### 3. Admin menu builds up to 100 full suggestions on every admin page load
+### 2. Admin menu builds up to 100 full suggestions on every admin page load
 `register_menus` (`includes/admin/class-admin-menu.php`) calls `get_suggestions` (diffs, comment
 threads, 5 count queries) just to show a badge, for every user on every admin page. The
 `per_page => 200` is clamped to 100, so the badge also caps at 100.
 - Use `WP_AI_Gatekeeper_Database::count_suggestions( array( 'status' => 'open' ) )`.
 
-### 4. Application Passwords are force-enabled for all users in staging
+### 3. Application Passwords are force-enabled for all users in staging
 `allow_application_passwords_in_staging` (`includes/class-auth.php`) enables Application
 Passwords for *every* user over plain HTTP on staging/local/development sites and overrides
 plugins that deliberately disable them. Many "staging" sites are publicly reachable.
 - Limit to `local`/`development`, or to AI users only, or make it an opt-in setting.
   Update `tests/test-plugin-verification.py` and the README to match.
 
-### 5. `allow_ai_read_drafts_in_wp_v2` is dead code
+### 4. `allow_ai_read_drafts_in_wp_v2` is dead code
 Core's `/wp/v2/posts` sets `status` to `publish` by default, so the `empty()` check in
 `includes/class-permissions.php` never passes and the filter never changes the query.
 - Decide the intended behavior (AI sees drafts by default?) and implement it via
   `$request->get_param( 'status' )` against the default, or remove the filter.
 
-### 6. Read policy is inconsistent with what is enforced and documented
+### 5. Read policy is inconsistent with what is enforced and documented
 - The settings page says the AI can read "posts/pages", but `filter_map_meta_cap` denies pages.
 - `read_post` also lets the AI read other authors' `private` and `future` posts, which the
   README's permission matrix does not mention.
 - Decide the policy, then align code, settings page, and README.
 
-### 7. AI key authentication applies to every request, not only REST
+### 6. AI key authentication applies to every request, not only REST
 `determine_current_user` accepts the key on admin-ajax, admin-post, and XML-RPC requests too.
 Capabilities are restricted, but this widens the attack surface unnecessarily.
 - Only honor the AI key for REST requests (e.g. check the request URI against
   `rest_get_url_prefix()`), and add a test that admin-ajax ignores it.
 
-### 8. Cleanup
+### 7. Cleanup
 - `uninstall.php`: nothing can set `wp_ai_gatekeeper_delete_data_on_uninstall`, so tables are
   never dropped; the `ai-assistant` user is left behind with no role. Add the setting (or
   document a WP-CLI way) and decide what happens to the AI user.

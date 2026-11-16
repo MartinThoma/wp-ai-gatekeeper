@@ -187,7 +187,10 @@ curl -s -X POST "$SITE/wp-json/ai-gatekeeper/v1/posts/123/suggestions" \
 > suggestions that would change text *inside* an HTML tag, attribute, or `<script>`/`<style>`
 > block are rejected with `422 suggestion_unsafe_markup`; suggest a replacement for the whole
 > element instead. Plain-text edits work anywhere, and trusted markup elsewhere in the post
-> is left untouched.
+> is left untouched. Block comments (`<!-- wp:… -->`) are kept exactly as sent, so a suggestion
+> may open or close a block whose other half lies outside `original_text`; only their
+> attributes are filtered. The response field `suggested_text_filtered` is `true` when the stored
+> `suggested_text` differs from what you sent, so check it before relying on your exact text.
 
 ### 4. Dialogue Between Human Editor and AI Agent
 
