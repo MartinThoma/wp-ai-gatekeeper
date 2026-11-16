@@ -45,6 +45,9 @@ EXPECTED_FILES = [
     "README.md",
     "docs/ROADMAP.md",
     "docs/how-to-contribute.md",
+    "docs/api.md",
+    "docs/permissions.md",
+    "docs/administration.md",
     ".gitattributes",
     ".github/workflows/release.yml",
 ]

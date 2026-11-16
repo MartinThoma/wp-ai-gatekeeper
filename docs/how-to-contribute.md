@@ -85,7 +85,8 @@ make signing-key             # Create the release signing key (once)
 
 ## Releasing
 
-Updates reach installed sites through GitHub releases (see "Updates" in the README). Every
+Updates reach installed sites through GitHub releases (see
+[Updates](administration.md#updates)). Every
 release must be **signed** with an offline key; installed sites refuse unsigned or tampered
 packages, so a compromised GitHub account cannot ship code to them.
 
