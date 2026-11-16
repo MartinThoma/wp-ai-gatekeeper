@@ -9,13 +9,7 @@ Larger features that are planned but not yet scheduled are listed under
 
 ## Low
 
-### 1. AI key authentication applies to every request, not only REST
-`determine_current_user` accepts the key on admin-ajax, admin-post, and XML-RPC requests too.
-Capabilities are restricted, but this widens the attack surface unnecessarily.
-- Only honor the AI key for REST requests (e.g. check the request URI against
-  `rest_get_url_prefix()`), and add a test that admin-ajax ignores it.
-
-### 2. Cleanup
+### 1. Cleanup
 - `uninstall.php`: nothing can set `wp_ai_gatekeeper_delete_data_on_uninstall`, so tables are
   never dropped; the `ai-assistant` user is left behind with no role. Add the setting (or
   document a WP-CLI way) and decide what happens to the AI user.

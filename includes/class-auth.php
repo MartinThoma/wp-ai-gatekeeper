@@ -400,13 +400,44 @@ class WP_AI_Gatekeeper_Auth {
 	}
 
 	/**
+	 * Whether the current request goes to the REST API, the only place the AI
+	 * key is accepted (not admin-ajax, admin-post, XML-RPC, or front-end pages).
+	 *
+	 * The current user can be determined before WordPress defines REST_REQUEST,
+	 * so the URL is checked too: a path under the REST prefix (pretty
+	 * permalinks), or ?rest_route= on the site's front controller (plain
+	 * permalinks). ?rest_route= on any other script does not count.
+	 *
+	 * @return bool
+	 */
+	public static function is_rest_request() {
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return true;
+		}
+		if ( empty( $_SERVER['REQUEST_URI'] ) ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Only compared, never output.
+		$path = (string) wp_parse_url( (string) wp_unslash( $_SERVER['REQUEST_URI'] ), PHP_URL_PATH );
+		$home = trailingslashit( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ) );
+
+		if ( 0 === strpos( $path . '/', $home . trim( rest_get_url_prefix(), '/' ) . '/' ) ) {
+			return true;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Routing check only.
+		return isset( $_GET['rest_route'] ) && in_array( $path, array( $home, $home . 'index.php' ), true );
+	}
+
+	/**
 	 * Authenticates requests presenting a valid AI API key.
 	 *
 	 * @param int|bool $user_id Currently determined user ID.
 	 * @return int|bool
 	 */
 	public static function determine_current_user( $user_id ) {
-		if ( self::$determining_user ) {
+		if ( self::$determining_user || ! self::is_rest_request() ) {
 			return $user_id;
 		}
 

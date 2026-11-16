@@ -118,10 +118,105 @@ class Test_Api_Key_Auth extends WP_AI_Gatekeeper_TestCase {
 		$filter = function () {
 			return $this->editor_id;
 		};
-		add_filter( 'determine_current_user', $filter, 5 );
+		add_filter( 'determine_current_user', $filter, 15 ); // After core's cookie check (10), before the plugin (20).
 
 		$this->assertSame( 0, $this->authenticate_with( array( 'HTTP_X_WP_AI_KEY' => 'wpai_invalid' ) ) );
-		remove_filter( 'determine_current_user', $filter, 5 );
+		remove_filter( 'determine_current_user', $filter, 15 );
+	}
+
+	/**
+	 * Data provider: request URLs and whether they count as REST requests.
+	 *
+	 * @return array
+	 */
+	public function request_urls() {
+		return array(
+			'REST, pretty permalinks'       => array( '/wp-json/ai-gatekeeper/v1/posts', array(), true ),
+			'REST index'                    => array( '/wp-json', array(), true ),
+			'REST, plain permalinks'        => array( '/', array( 'rest_route' => '/ai-gatekeeper/v1/posts' ), true ),
+			'REST via index.php'            => array( '/index.php', array( 'rest_route' => '/' ), true ),
+			'admin-ajax'                    => array( '/wp-admin/admin-ajax.php', array(), false ),
+			'admin-ajax with rest_route'    => array( '/wp-admin/admin-ajax.php', array( 'rest_route' => '/ai-gatekeeper/v1/posts' ), false ),
+			'admin-post'                    => array( '/wp-admin/admin-post.php', array(), false ),
+			'XML-RPC'                       => array( '/xmlrpc.php', array(), false ),
+			'admin page'                    => array( '/wp-admin/edit.php', array(), false ),
+			'front-end page'                => array( '/hello-world/', array(), false ),
+			'look-alike prefix'             => array( '/wp-jsonp/x', array(), false ),
+			'REST prefix deeper in the URL' => array( '/blog/wp-json/x', array(), false ),
+		);
+	}
+
+	/**
+	 * Test: the AI key is only accepted on REST API requests.
+	 *
+	 * @dataProvider request_urls
+	 *
+	 * @param string $uri     REQUEST_URI.
+	 * @param array  $get     Query parameters.
+	 * @param bool   $is_rest Whether the key should authenticate.
+	 */
+	public function test_key_is_only_accepted_on_rest_requests( $uri, array $get, $is_rest ) {
+		$this->assertFalse( defined( 'REST_REQUEST' ), 'Precondition: decided by the URL.' );
+		$_GET = $get; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$user = $this->authenticate_with(
+			array(
+				'HTTP_X_WP_AI_KEY' => $this->ai_api_key,
+				'REQUEST_URI'      => $uri,
+			)
+		);
+
+		$this->assertSame( $is_rest ? $this->ai_user_id : 0, $user );
+		$this->assertSame( $is_rest, WP_AI_Gatekeeper_Auth::is_ai_key_request() );
+	}
+
+	/**
+	 * Test: outside the REST API a key, valid or not, leaves an existing login
+	 * alone (it no longer logs the browser user out of admin-ajax).
+	 */
+	public function test_key_does_not_touch_logins_outside_rest() {
+		$filter = function () {
+			return $this->editor_id;
+		};
+		add_filter( 'determine_current_user', $filter, 15 ); // After core's cookie check (10), before the plugin (20).
+
+		foreach ( array( $this->ai_api_key, 'wpai_invalid' ) as $key ) {
+			$user = $this->authenticate_with(
+				array(
+					'HTTP_X_WP_AI_KEY' => $key,
+					'REQUEST_URI'      => '/wp-admin/admin-ajax.php',
+				)
+			);
+			$this->assertSame( $this->editor_id, $user );
+		}
+		remove_filter( 'determine_current_user', $filter, 15 );
+	}
+
+	/**
+	 * Test: on a site installed in a subdirectory, the REST prefix is relative
+	 * to the site's home path.
+	 */
+	public function test_rest_detection_in_subdirectory_install() {
+		update_option( 'home', 'http://example.org/blog' );
+
+		$this->assertSame(
+			$this->ai_user_id,
+			$this->authenticate_with(
+				array(
+					'HTTP_X_WP_AI_KEY' => $this->ai_api_key,
+					'REQUEST_URI'      => '/blog/wp-json/ai-gatekeeper/v1/posts',
+				)
+			)
+		);
+		$this->assertSame(
+			0,
+			$this->authenticate_with(
+				array(
+					'HTTP_X_WP_AI_KEY' => $this->ai_api_key,
+					'REQUEST_URI'      => '/wp-json/ai-gatekeeper/v1/posts',
+				)
+			)
+		);
 	}
 
 	/**

@@ -110,7 +110,9 @@ How it works and why it is safe:
 
 ## Authentication
 
-AI agents can authenticate using any of the following methods:
+AI agents can authenticate using any of the following methods. The API key (methods 1 and 2) is
+only accepted on REST API requests (`/wp-json/…` or `?rest_route=`); admin-ajax, admin-post,
+XML-RPC, and normal pages ignore it.
 
 1. **Custom Header (Recommended):**
    ```http

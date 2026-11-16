@@ -72,6 +72,7 @@ abstract class WP_AI_Gatekeeper_TestCase extends WP_UnitTestCase {
 		foreach ( self::AUTH_SERVER_KEYS as $key ) {
 			unset( $_SERVER[ $key ] );
 		}
+		unset( $_GET['rest_route'] );
 		$this->reset_auth_state();
 		parent::tear_down();
 	}
@@ -99,6 +100,9 @@ abstract class WP_AI_Gatekeeper_TestCase extends WP_UnitTestCase {
 	 * Authenticate like a real request: set server headers, then let WordPress
 	 * determine the current user (runs the determine_current_user filter).
 	 *
+	 * The request goes to the REST API unless $server sets another REQUEST_URI
+	 * (the AI key is only accepted there).
+	 *
 	 * @param array $server $_SERVER entries, e.g. array( 'HTTP_X_WP_AI_KEY' => $key ).
 	 * @return int The resulting current user ID.
 	 */
@@ -106,6 +110,7 @@ abstract class WP_AI_Gatekeeper_TestCase extends WP_UnitTestCase {
 		foreach ( self::AUTH_SERVER_KEYS as $key ) {
 			unset( $_SERVER[ $key ] );
 		}
+		$server += array( 'REQUEST_URI' => '/wp-json/ai-gatekeeper/v1/posts' );
 		foreach ( $server as $key => $value ) {
 			$_SERVER[ $key ] = $value;
 		}
