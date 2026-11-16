@@ -156,7 +156,8 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			);
 		}
 
-		$is_author = (int) $suggestion->author_user_id === (int) $user_id;
+		$is_author = (int) $suggestion->author_user_id === (int) $user_id
+			&& WP_AI_Gatekeeper_Permissions::can_read_post_content( (int) $suggestion->post_id, $user_id );
 		$can_edit  = user_can( $user_id, 'edit_post', (int) $suggestion->post_id );
 		if ( ! $is_author && ! $can_edit ) {
 			return new WP_Error(
@@ -283,7 +284,8 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			);
 		}
 
-		$is_ai    = WP_AI_Gatekeeper_Auth::is_ai_user( $user_id );
+		$is_ai    = WP_AI_Gatekeeper_Auth::is_ai_user( $user_id )
+			&& self::can_view_post_suggestions( $user_id, (int) $suggestion->post_id );
 		$can_edit = user_can( $user_id, 'edit_post', (int) $suggestion->post_id );
 		if ( ! $is_ai && ! $can_edit ) {
 			return new WP_Error(
@@ -608,7 +610,9 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 	 */
 	public static function can_view_post_suggestions( $user_id, $post_id ) {
 		if ( WP_AI_Gatekeeper_Auth::is_ai_user( $user_id ) ) {
-			return user_can( $user_id, 'read_post', $post_id );
+			// Suggestions quote the article, so password-protected text stays hidden.
+			return user_can( $user_id, 'read_post', $post_id )
+				&& WP_AI_Gatekeeper_Permissions::can_read_post_content( $post_id, $user_id );
 		}
 		return user_can( $user_id, 'edit_post', $post_id );
 	}
@@ -617,13 +621,9 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 	 * IDs of posts whose suggestions a user may see, for list queries.
 	 *
 	 * @param int $user_id User ID.
-	 * @return int[]|null Null when unrestricted (AI users), else the allowed post IDs.
+	 * @return int[] The allowed post IDs.
 	 */
 	public static function visible_post_ids( $user_id ) {
-		if ( WP_AI_Gatekeeper_Auth::is_ai_user( $user_id ) ) {
-			return null;
-		}
-
 		$post_ids = WP_AI_Gatekeeper_Database::get_suggestion_post_ids();
 		if ( empty( $post_ids ) ) {
 			return array();
@@ -634,7 +634,7 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			array_filter(
 				$post_ids,
 				static function ( $post_id ) use ( $user_id ) {
-					return user_can( $user_id, 'edit_post', $post_id );
+					return self::can_view_post_suggestions( $user_id, $post_id );
 				}
 			)
 		);

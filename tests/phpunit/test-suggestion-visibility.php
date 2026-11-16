@@ -1,7 +1,8 @@
 <?php
 /**
  * Tests: humans only see suggestions (and their discussions) on posts they can
- * edit, the same people who may comment on and merge them. The AI sees all.
+ * edit, the same people who may comment on and merge them. The AI sees all
+ * except those on password-protected posts (see test-password-protected-posts.php).
  *
  * @package WP_AI_Gatekeeper
  */

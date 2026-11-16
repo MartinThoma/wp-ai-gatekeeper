@@ -571,7 +571,10 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			);
 		}
 
-		if ( ! WP_AI_Gatekeeper_Auth::is_ai_user() && ! current_user_can( 'edit_post', $post->ID ) ) {
+		$allowed = WP_AI_Gatekeeper_Auth::is_ai_user()
+			? WP_AI_Gatekeeper_Permissions::can_read_post_content( $post, get_current_user_id() )
+			: current_user_can( 'edit_post', $post->ID );
+		if ( ! $allowed ) {
 			return new WP_Error(
 				'rest_forbidden',
 				__( 'You do not have permission to suggest changes for this article.', 'wp-ai-gatekeeper' ),
@@ -657,12 +660,32 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			$query_args['s'] = sanitize_text_field( $search );
 		}
 
+		// WordPress hides password-protected posts from searches only for logged-out
+		// visitors. Here every caller is logged in, so a search would reveal whether
+		// hidden content contains a phrase. Only search protected posts the caller
+		// may read in full (approximated by authorship for users who cannot edit
+		// others' posts).
+		$restrict_search = static function ( $search_sql ) {
+			global $wpdb;
+			if ( '' === $search_sql ) {
+				return $search_sql;
+			}
+			return $search_sql . $wpdb->prepare( " AND ( {$wpdb->posts}.post_password = '' OR {$wpdb->posts}.post_author = %d ) ", get_current_user_id() );
+		};
+		$restricting     = ! empty( $query_args['s'] ) && ! current_user_can( 'edit_others_posts' );
+		if ( $restricting ) {
+			add_filter( 'posts_search', $restrict_search );
+		}
+
 		$author = $request->get_param( 'author' );
 		if ( ! empty( $author ) ) {
 			$query_args['author'] = absint( $author );
 		}
 
-		$query    = new WP_Query( $query_args );
+		$query = new WP_Query( $query_args );
+		if ( $restricting ) {
+			remove_filter( 'posts_search', $restrict_search );
+		}
 		$posts    = $query->posts;
 		$post_ids = wp_list_pluck( $posts, 'ID' );
 		$counts   = WP_AI_Gatekeeper_Database::get_open_counts_by_post( $post_ids );
@@ -974,8 +997,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			);
 		}
 
-		$can_view = WP_AI_Gatekeeper_Suggestion_Service::can_view_post_suggestions( get_current_user_id(), $post->ID );
-		if ( ! $can_view || ( post_password_required( $post ) && ! current_user_can( 'edit_post', $post->ID ) ) ) {
+		if ( ! WP_AI_Gatekeeper_Suggestion_Service::can_view_post_suggestions( get_current_user_id(), $post->ID ) ) {
 			return new WP_Error(
 				'rest_forbidden',
 				__( 'You do not have permission to view this article.', 'wp-ai-gatekeeper' ),
@@ -1076,6 +1098,7 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 	private function format_post( WP_Post $post, $open_suggestions_count = 0 ) {
 		$author     = get_userdata( (int) $post->post_author );
 		$drafted_by = WP_AI_Gatekeeper_Authorship::drafted_by( $post->ID );
+		$readable   = WP_AI_Gatekeeper_Permissions::can_read_post_content( $post, get_current_user_id() );
 
 		return array(
 			'id'                     => (int) $post->ID,
@@ -1085,9 +1108,11 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			'author_name'            => $author ? (string) $author->display_name : '',
 			'is_ai_authored'         => $drafted_by > 0 || WP_AI_Gatekeeper_Auth::is_ai_user( (int) $post->post_author ),
 			'drafted_by'             => $drafted_by > 0 ? $drafted_by : null,
-			'excerpt'                => (string) $post->post_excerpt,
-			'content_raw'            => (string) $post->post_content,
-			'content_rendered'       => apply_filters( 'the_content', $post->post_content ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter.
+			'excerpt'                => $readable ? (string) $post->post_excerpt : '',
+			'content_raw'            => $readable ? (string) $post->post_content : '',
+			'content_rendered'       => $readable ? apply_filters( 'the_content', $post->post_content ) : '', // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter.
+			// True when the post is password-protected and the excerpt and content above were withheld.
+			'content_protected'      => ! $readable,
 			'featured_media'         => (int) get_post_thumbnail_id( $post->ID ),
 			'date_gmt'               => (string) $post->post_date_gmt,
 			'modified_gmt'           => (string) $post->post_modified_gmt,

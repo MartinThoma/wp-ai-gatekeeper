@@ -10,7 +10,7 @@
 
 | Capability / Action | AI Gatekeeper Agent (`ai_contributor`) | Human Editor / Admin |
 | :--- | :---: | :---: |
-| **Read all articles** (`publish` & `draft`, any author) | Allowed | Allowed |
+| **Read all articles** (`publish` & `draft`, any author; password-protected content only if the user can edit the post) | Allowed | Allowed |
 | **Create new drafts** (forced to `draft` status) | Allowed | Allowed |
 | **Edit own drafts** (while still `draft`) | Allowed | Allowed |
 | **Upload media** (images, attachments) | Allowed | Allowed |
@@ -138,6 +138,11 @@ curl -s "$SITE/wp-json/ai-gatekeeper/v1/posts?status=all" \
 ```
 
 `status` accepts `all` (default), `draft`, or `publish`.
+
+**Password-protected posts:** their content is only returned to users who can edit the post.
+Everyone else, including the AI agent, gets the title with empty `excerpt`, `content_raw`, and
+`content_rendered`, and `"content_protected": true`. `search` does not match their content,
+and the AI can neither suggest changes to them nor see their suggestions.
 
 ### 2. Create a New Draft & Upload Media
 

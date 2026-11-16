@@ -66,6 +66,27 @@ class WP_AI_Gatekeeper_Permissions {
 	}
 
 	/**
+	 * Whether a user may see a post's text (title aside).
+	 *
+	 * A password-protected post is readable (read_post) by every logged-in
+	 * user, but its content is meant only for people who know the password.
+	 * The plugin's API has no password parameter, so it shows the content only
+	 * to users who can edit the post. Deliberately ignores the wp-postpass
+	 * cookie, so the answer does not depend on the browser making the request.
+	 *
+	 * @param WP_Post|int $post    Post object or ID.
+	 * @param int         $user_id User ID.
+	 * @return bool
+	 */
+	public static function can_read_post_content( $post, $user_id ) {
+		$post = get_post( $post );
+		if ( ! $post ) {
+			return false;
+		}
+		return '' === (string) $post->post_password || user_can( $user_id, 'edit_post', $post->ID );
+	}
+
+	/**
 	 * Strips forbidden primitive capabilities from AI users.
 	 *
 	 * @param array   $allcaps All capabilities for the user.

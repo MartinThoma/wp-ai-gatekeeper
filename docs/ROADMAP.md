@@ -9,10 +9,15 @@ Larger features that are planned but not yet scheduled are listed under
 
 ## Medium
 
-### 1. Password-protected posts leak via the plugin REST API
-`read_post` allows them and `format_post` (`includes/class-rest-controller.php`) returns
-`content_raw` / `content_rendered`, so any logged-in Subscriber can read protected content.
-- Withhold content for password-protected posts unless the caller can `edit_post`.
+### 1. Searching drafts reveals other people's draft text through `total`
+`GET /ai-gatekeeper/v1/posts?status=draft&search=…` runs the search over every draft and only
+afterwards drops posts the caller may not read (`read_post`). `items` is filtered, but `total`
+and `total_pages` still count the hidden matches, so even a Subscriber can test whether someone
+else's draft contains a phrase (verified: `items=0 total=1`). The same applies to `private`
+posts and to the counts without a search.
+- Restrict the query itself (statuses and authors the caller may read) instead of filtering
+  afterwards, so `total` matches `items`. Keep the AI's intended read access (see #6).
+- Add a test that a Subscriber's draft search returns `total: 0`.
 
 ### 2. A stale editor in another tab can still undo a merge
 Merging from inside the editor is now safe (it refuses while there are unsaved changes and
