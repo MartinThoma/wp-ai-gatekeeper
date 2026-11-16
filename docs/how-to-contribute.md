@@ -60,11 +60,24 @@ make signing-key             # Create the release signing key (once)
   matching WordPress test suite) and starts a throwaway MariaDB on tmpfs. The plugin is
   mounted read-only, so tests never write into the working tree. `make down` stops the test DB.
   `make coverage` runs the suite with PCOV and prints a summary; open `coverage/index.html`
-  for line-by-line detail. It fails if line coverage drops below the minimum in
-  `bin/check-coverage.py` (currently 85%); CI enforces the same minimum. Code that runs while the plugin loads (the main plugin file,
-  hook registration) shows as uncovered because it executes before the tests start.
-  Tests live in `tests/phpunit/`; extend `WP_AI_Gatekeeper_TestCase` for the shared editor,
-  AI user, API key, and REST helpers.
+  for line-by-line detail. Tests live in `tests/phpunit/`; extend `WP_AI_Gatekeeper_TestCase`
+  for the shared editor, AI user, API key, and REST helpers.
+- **Line coverage must stay at 100%.** `make coverage` and CI fail below the minimum in
+  `bin/check-coverage.py`. Every line is either tested or explicitly excluded, so a gap
+  always means a missing test. Exclude a line only if it cannot run under PHPUnit, and say
+  why in a comment next to the marker (the marker itself must be the exact text shown):
+  ```php
+  exit; // @codeCoverageIgnore
+
+  // @codeCoverageIgnoreStart
+  // Runs while WordPress loads the plugin, before coverage recording starts.
+  ...
+  // @codeCoverageIgnoreEnd
+  ```
+  Excluded today: the `ABSPATH` guards, the bootstrap in `wp-ai-gatekeeper.php`, `exit`
+  after redirects, and a few branches that need a broken server (no randomness, no temporary
+  directory) or a real HTTP file upload. Failures that can be simulated, such as database
+  errors, are tested instead (`tests/phpunit/test-failure-paths.php`).
 - **Coding standards (WordPress Coding Standards + PHP 7.4 compatibility):**
   ```bash
   composer install        # once; needs PHP with the xml and mbstring extensions

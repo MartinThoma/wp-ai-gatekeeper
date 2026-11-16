@@ -22,9 +22,12 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
 /**
  * Sanitizes and validates untrusted suggestion markup.

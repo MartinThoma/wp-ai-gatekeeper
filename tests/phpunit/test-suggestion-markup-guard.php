@@ -264,6 +264,19 @@ class Test_Suggestion_Markup_Guard extends WP_AI_Gatekeeper_TestCase {
 			'uppercase SCRIPT'                       => array( '<SCRIPT>a|</SCRIPT>', 'rawtext' ),
 			'inside textarea'                        => array( '<textarea><b>|</b></textarea>', 'rawtext' ),
 			'inside bogus comment'                   => array( '<!doctype| html>', 'tag' ),
+			'after bogus comment'                    => array( '<!doctype html>|x', 'text' ),
+			'after end tag'                          => array( '<p>x</p>|y', 'text' ),
+			'abrupt comment "<!--->"'                => array( '<!--->|x', 'text' ),
+			'comment closed by "--!>"'               => array( '<!-- a --!>|x', 'text' ),
+			'unterminated comment'                   => array( '<!-- a|', 'comment' ),
+			'after unquoted value and space'         => array( '<a href=x title="y>z|">', 'tag' ),
+			'after tag with unquoted values'         => array( '<a href=x y=z>|w', 'text' ),
+			'space before quoted value'              => array( '<a href= "x>y|">', 'tag' ),
+			'spaces around "="'                      => array( '<a b = "c>d|">', 'tag' ),
+			'second quoted attribute'                => array( '<a b="c" d="e>f|">', 'tag' ),
+			'self-closing slash'                     => array( '<br/>|x', 'text' ),
+			'plaintext runs to the end'              => array( '<plaintext>a</plaintext>|b', 'rawtext' ),
+			'unclosed script runs to the end'        => array( '<script>a|', 'rawtext' ),
 		);
 	}
 

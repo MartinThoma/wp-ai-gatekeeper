@@ -427,4 +427,57 @@ class Test_Admin extends WP_AI_Gatekeeper_TestCase {
 		WP_AI_Gatekeeper_Meta_Box::register_meta_box();
 		$this->assertArrayHasKey( 'wp-ai-gatekeeper-suggestions', $wp_meta_boxes['post']['normal']['high'] );
 	}
+
+	/**
+	 * Test: the settings page confirms saved settings and shows an empty key
+	 * list clearly.
+	 */
+	public function test_settings_page_notices_and_empty_key_list() {
+		wp_set_current_user( $this->admin_id );
+		delete_option( WP_AI_Gatekeeper_Auth::KEYS_OPTION );
+
+		$_GET['updated'] = 'settings_saved';
+		$page            = $this->render( array( 'WP_AI_Gatekeeper_Admin_Menu', 'render_settings_page' ) );
+		$this->assertStringContainsString( 'No API keys generated yet.', $page );
+		$this->assertSame( 1, substr_count( $page, 'Settings saved.' ) );
+
+		$_GET['updated'] = 'uninstall_saved';
+		$this->assertSame( 1, substr_count( $this->render( array( 'WP_AI_Gatekeeper_Admin_Menu', 'render_settings_page' ) ), 'Settings saved.' ) );
+	}
+
+	/**
+	 * Test: a card shows the block it targets, and a merged card without
+	 * merge details still shows the lock.
+	 */
+	public function test_card_block_pill_and_plain_lock_banner() {
+		$post_id    = $this->create_editor_post( array( 'post_content' => '<p>Alpha beta</p>' ) );
+		$created    = WP_AI_Gatekeeper_Suggestion_Service::create_suggestion(
+			$post_id,
+			array(
+				'original_text'  => 'beta',
+				'suggested_text' => 'gamma',
+				'block_id'       => 'block-42',
+			),
+			$this->ai_user_id
+		);
+		$suggestion = WP_AI_Gatekeeper_Suggestion_Service::get_suggestion_details( $created['id'] );
+		wp_set_current_user( $this->editor_id );
+
+		$card = $this->render(
+			static function () use ( $suggestion ) {
+				WP_AI_Gatekeeper_Meta_Box::render_suggestion_card( $suggestion );
+			}
+		);
+		$this->assertStringContainsString( '<code class="wpai-block-pill">block-42</code>', $card );
+
+		$suggestion['status']         = 'merged';
+		$suggestion['is_locked']      = true;
+		$suggestion['merged_by_name'] = '';
+		$locked                       = $this->render(
+			static function () use ( $suggestion ) {
+				WP_AI_Gatekeeper_Meta_Box::render_suggestion_card( $suggestion );
+			}
+		);
+		$this->assertStringContainsString( 'This suggestion has been merged and is permanently locked.', $locked );
+	}
 }

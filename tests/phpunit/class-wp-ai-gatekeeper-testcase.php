@@ -73,6 +73,7 @@ abstract class WP_AI_Gatekeeper_TestCase extends WP_UnitTestCase {
 			unset( $_SERVER[ $key ] );
 		}
 		unset( $_GET['rest_route'] );
+		unset( $GLOBALS['wpai_test_apache_headers'] );
 		$this->reset_auth_state();
 		parent::tear_down();
 	}

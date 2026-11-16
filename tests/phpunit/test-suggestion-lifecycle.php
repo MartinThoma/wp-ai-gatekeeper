@@ -415,4 +415,30 @@ class Test_Suggestion_Lifecycle extends WP_AI_Gatekeeper_TestCase {
 		$this->assertFalse( $details['is_applicable'] );
 		$this->assertErrorCode( 'post_not_found', WP_AI_Gatekeeper_Suggestion_Service::merge_suggestion( $id, $this->editor_id ), 404 );
 	}
+
+	/**
+	 * Test: updating a suggestion whose article was deleted reports 404, and
+	 * suggestions can be listed by author.
+	 */
+	public function test_update_after_post_deleted_and_author_filter() {
+		$id = $this->suggest( 'Alpha', 'A' );
+		wp_delete_post( $this->post_id, true );
+
+		$this->assertErrorCode( 'post_not_found', WP_AI_Gatekeeper_Suggestion_Service::update_suggestion( $id, array( 'suggested_text' => 'B' ), $this->ai_user_id ), 404 );
+
+		$by_ai    = WP_AI_Gatekeeper_Database::count_suggestions( array( 'author_user_id' => $this->ai_user_id ) );
+		$by_human = WP_AI_Gatekeeper_Database::count_suggestions( array( 'author_user_id' => $this->editor_id ) );
+		$this->assertSame( 1, $by_ai );
+		$this->assertSame( 0, $by_human );
+	}
+
+	/**
+	 * Test: without any suggestions, nobody's queue contains posts.
+	 */
+	public function test_visible_post_ids_without_suggestions() {
+		global $wpdb;
+		$wpdb->query( 'DELETE FROM ' . WP_AI_Gatekeeper_Database::get_suggestions_table() ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared -- Test reset.
+
+		$this->assertSame( array(), WP_AI_Gatekeeper_Suggestion_Service::visible_post_ids( $this->editor_id ) );
+	}
 }

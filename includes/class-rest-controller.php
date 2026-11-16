@@ -5,9 +5,12 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
 /**
  * Registers and handles all /ai-gatekeeper/v1 REST endpoints.
@@ -855,7 +858,9 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 				);
 			}
 
-			$attachment_id = $this->insert_attachment_from_upload( $movefile, $parent_id, $request );
+			// WordPress only accepts files PHP received as real HTTP uploads, which
+			// PHPUnit cannot produce; the raw-body path below shares the same code.
+			$attachment_id = $this->insert_attachment_from_upload( $movefile, $parent_id, $request ); // @codeCoverageIgnore
 		} else {
 			$raw_body = (string) $request->get_body(); // Null for internally built requests.
 			if ( '' === $raw_body ) {
@@ -869,11 +874,14 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			$filename = $this->extract_filename_from_headers( $request );
 			$tmp_file = wp_tempnam( $filename );
 			if ( ! $tmp_file ) {
+				// @codeCoverageIgnoreStart
+				// Only when the server's temporary directory is unusable.
 				return new WP_Error(
 					'media_temp_failed',
 					__( 'Could not allocate temporary file for upload.', 'wp-ai-gatekeeper' ),
 					array( 'status' => 500 )
 				);
+				// @codeCoverageIgnoreEnd
 			}
 
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents

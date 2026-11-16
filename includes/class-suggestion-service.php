@@ -5,9 +5,12 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
 /**
  * Coordinates lifecycle operations on AI article change suggestions.
@@ -174,6 +177,16 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			);
 		}
 
+		// Check the article exists first: a permission error would be misleading.
+		$post = get_post( (int) $suggestion->post_id );
+		if ( ! $post ) {
+			return new WP_Error(
+				'post_not_found',
+				__( 'Target article no longer exists.', 'wp-ai-gatekeeper' ),
+				array( 'status' => 404 )
+			);
+		}
+
 		$is_author = (int) $suggestion->author_user_id === (int) $user_id
 			&& WP_AI_Gatekeeper_Permissions::can_read_post_content( (int) $suggestion->post_id, $user_id );
 		$can_edit  = user_can( $user_id, 'edit_post', (int) $suggestion->post_id );
@@ -182,15 +195,6 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 				'suggestion_update_forbidden',
 				__( 'You do not have permission to update this suggestion.', 'wp-ai-gatekeeper' ),
 				array( 'status' => 403 )
-			);
-		}
-
-		$post = get_post( (int) $suggestion->post_id );
-		if ( ! $post ) {
-			return new WP_Error(
-				'post_not_found',
-				__( 'Target article no longer exists.', 'wp-ai-gatekeeper' ),
-				array( 'status' => 404 )
 			);
 		}
 
@@ -477,15 +481,16 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 			)
 		);
 
-		$details                 = self::get_suggestion_details( $suggestion->id );
-		$updated_post            = get_post( $post->ID );
+		$details      = self::get_suggestion_details( $suggestion->id );
+		$updated_post = get_post( $post->ID );
+		// The post was just updated, so the null branch only guards against races.
 		$details['updated_post'] = $updated_post ? array(
 			'id'           => (int) $updated_post->ID,
 			'post_title'   => (string) $updated_post->post_title,
 			'post_content' => (string) $updated_post->post_content,
 			'post_excerpt' => (string) $updated_post->post_excerpt,
 			'post_status'  => (string) $updated_post->post_status,
-		) : null;
+		) : null; // @codeCoverageIgnore
 
 		return $details;
 	}

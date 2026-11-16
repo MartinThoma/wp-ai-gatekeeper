@@ -307,4 +307,66 @@ class Test_Stale_Editor_Guard extends WP_AI_Gatekeeper_TestCase {
 
 		$this->assertSame( '<p>Use hardware keys.</p>', $this->content() );
 	}
+
+	/**
+	 * Test: the editor script is loaded on the post editor with the merge
+	 * count and messages, and not elsewhere.
+	 */
+	public function test_editor_script_is_enqueued_with_merge_count() {
+		global $post;
+		$post = get_post( $this->post_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- The edit screen's post.
+
+		WP_AI_Gatekeeper_Stale_Editor_Guard::enqueue( 'index.php' );
+		$this->assertFalse( wp_script_is( 'wp-ai-gatekeeper-stale-editor', 'enqueued' ), 'Not on other screens.' );
+
+		WP_AI_Gatekeeper_Stale_Editor_Guard::enqueue( 'post.php' );
+		$this->assertTrue( wp_script_is( 'wp-ai-gatekeeper-stale-editor', 'enqueued' ) );
+		$data = wp_scripts()->get_data( 'wp-ai-gatekeeper-stale-editor', 'data' );
+		$this->assertStringContainsString( '"postId":"' . $this->post_id . '"', $data );
+		$this->assertStringContainsString( '"mergeCount":"1"', $data );
+		$this->assertStringContainsString( '"header":"X-WPAI-Merge-Count"', $data );
+
+		wp_dequeue_script( 'wp-ai-gatekeeper-stale-editor' );
+		wp_deregister_script( 'wp-ai-gatekeeper-stale-editor' );
+		$post = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Reset.
+	}
+
+	/**
+	 * Test: pages and users who cannot edit the post do not get the script.
+	 */
+	public function test_editor_script_skips_pages_and_readers() {
+		global $post;
+		$post = self::factory()->post->create_and_get( array( 'post_type' => 'page' ) ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- The edit screen's post.
+		WP_AI_Gatekeeper_Stale_Editor_Guard::enqueue( 'post.php' );
+		$this->assertFalse( wp_script_is( 'wp-ai-gatekeeper-stale-editor', 'enqueued' ) );
+
+		$post = get_post( $this->post_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- The edit screen's post.
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+		WP_AI_Gatekeeper_Stale_Editor_Guard::enqueue( 'post.php' );
+		$this->assertFalse( wp_script_is( 'wp-ai-gatekeeper-stale-editor', 'enqueued' ) );
+		$post = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Reset.
+	}
+
+	/**
+	 * Test: the classic form field is only added to posts.
+	 */
+	public function test_classic_field_only_on_posts() {
+		ob_start();
+		WP_AI_Gatekeeper_Stale_Editor_Guard::render_field( self::factory()->post->create_and_get( array( 'post_type' => 'page' ) ) );
+		$this->assertSame( '', ob_get_clean() );
+	}
+
+	/**
+	 * Test: an earlier REST error is passed on unchanged, and Heartbeat
+	 * requests without the plugin's data are left alone.
+	 */
+	public function test_unrelated_requests_pass_through() {
+		$error   = new WP_Error( 'earlier', 'Earlier error' );
+		$request = new WP_REST_Request( 'POST', "/wp/v2/posts/{$this->post_id}" );
+		$request->set_header( WP_AI_Gatekeeper_Stale_Editor_Guard::HEADER, '0' );
+		$this->assertSame( $error, WP_AI_Gatekeeper_Stale_Editor_Guard::check_rest_save( $error, array(), $request ) );
+
+		$response = array( 'other' => 1 );
+		$this->assertSame( $response, WP_AI_Gatekeeper_Stale_Editor_Guard::heartbeat_received( $response, array( 'wp_autosave' => array() ) ) );
+	}
 }

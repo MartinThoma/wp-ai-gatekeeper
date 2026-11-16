@@ -401,4 +401,17 @@ class Test_Updater extends WP_AI_Gatekeeper_TestCase {
 		WP_AI_Gatekeeper::maybe_upgrade();
 		$this->assertTrue( get_role( WP_AI_Gatekeeper_Auth::ROLE_SLUG )->has_cap( 'custom_cap' ), 'No re-sync without a version change.' );
 	}
+
+	/**
+	 * Test: a failed package download is reported as such, and the details
+	 * dialog falls back to WordPress when no manifest is available.
+	 */
+	public function test_download_failure_and_missing_details() {
+		$result = $this->download( WP_AI_Gatekeeper_Updater::package_url( '9.9.9' ) );
+		$this->assertWPError( $result );
+		$this->assertNotSame( 'wpai_update_signature_invalid', $result->get_error_code(), 'Download error, not a signature error.' );
+
+		set_site_transient( WP_AI_Gatekeeper_Updater::CACHE_KEY, array( 'error' => true ), HOUR_IN_SECONDS );
+		$this->assertFalse( WP_AI_Gatekeeper_Updater::plugin_information( false, 'plugin_information', (object) array( 'slug' => WP_AI_Gatekeeper_Updater::SLUG ) ) );
+	}
 }

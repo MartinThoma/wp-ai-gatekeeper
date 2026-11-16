@@ -5,9 +5,12 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
 /**
  * Class WP_AI_Gatekeeper_Admin_Menu
@@ -101,6 +104,8 @@ class WP_AI_Gatekeeper_Admin_Menu {
 	 * @return void
 	 */
 	public static function handle_form_actions() {
+		// Each action ends with a redirect and exit; the tests stop at the redirect,
+		// so the exit lines are excluded from coverage.
 		if ( ! isset( $_POST['wpai_action'] ) || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
@@ -123,37 +128,37 @@ class WP_AI_Gatekeeper_Admin_Menu {
 			}
 
 			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=key_created' ) );
-			exit;
+			exit; // @codeCoverageIgnore
 		}
 
 		if ( 'revoke_key' === $action && isset( $_POST['key_id'] ) ) {
 			WP_AI_Gatekeeper_Auth::revoke_api_key( sanitize_text_field( wp_unslash( $_POST['key_id'] ) ) );
 			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=key_revoked' ) );
-			exit;
+			exit; // @codeCoverageIgnore
 		}
 
 		if ( 'delete_key' === $action && isset( $_POST['key_id'] ) ) {
 			WP_AI_Gatekeeper_Auth::delete_api_key( sanitize_text_field( wp_unslash( $_POST['key_id'] ) ) );
 			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=key_deleted' ) );
-			exit;
+			exit; // @codeCoverageIgnore
 		}
 
 		if ( 'sync_ai_user' === $action ) {
 			WP_AI_Gatekeeper_Auth::activate();
 			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=role_synced' ) );
-			exit;
+			exit; // @codeCoverageIgnore
 		}
 
 		if ( 'save_authorship' === $action ) {
 			WP_AI_Gatekeeper_Authorship::set_enabled( ! empty( $_POST['reassign_author_on_publish'] ) );
 			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=settings_saved' ) );
-			exit;
+			exit; // @codeCoverageIgnore
 		}
 
 		if ( 'save_uninstall' === $action ) {
 			update_option( self::DELETE_DATA_OPTION, ! empty( $_POST['delete_data_on_uninstall'] ), false );
 			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=uninstall_saved' ) );
-			exit;
+			exit; // @codeCoverageIgnore
 		}
 	}
 

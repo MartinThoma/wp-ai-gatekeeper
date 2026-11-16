@@ -494,4 +494,32 @@ class Test_Guardrails extends WP_AI_Gatekeeper_TestCase {
 		wp_set_current_user( $this->editor_id );
 		$this->assertSame( 1, WP_AI_Gatekeeper_Permissions::block_ai_comment_approval( 1 ) );
 	}
+
+	/**
+	 * Test: further write-boundary checks. The AI cannot read missing posts,
+	 * overwrite another user's upload, or create revisions of others' posts;
+	 * humans' comments pass through untouched.
+	 */
+	public function test_more_write_boundary_checks() {
+		$foreign_upload = self::factory()->attachment->create_object( 'c.png', 0, array( 'post_author' => $this->editor_id ) );
+		$editor_post    = $this->create_editor_post( array( 'post_content' => 'Original' ) );
+
+		wp_set_current_user( $this->ai_user_id );
+		$this->assertFalse( current_user_can( 'read_post', 999999 ) );
+
+		wp_update_post(
+			array(
+				'ID'         => $foreign_upload,
+				'post_title' => 'Renamed by AI',
+			)
+		);
+		$this->assertNotSame( 'Renamed by AI', get_post( $foreign_upload )->post_title );
+
+		$revision = _wp_put_post_revision( get_post( $editor_post ) );
+		$this->assertTrue( is_wp_error( $revision ) || 0 === $revision, 'Revision refused.' );
+
+		wp_set_current_user( $this->editor_id );
+		$comment = array( 'comment_content' => 'Hi' );
+		$this->assertSame( $comment, WP_AI_Gatekeeper_Permissions::block_ai_comment_creation( $comment ) );
+	}
 }

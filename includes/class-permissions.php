@@ -5,9 +5,12 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
 /**
  * Enforces what the AI can and cannot do across WordPress capabilities,
@@ -329,7 +332,8 @@ class WP_AI_Gatekeeper_Permissions {
 		if ( ! empty( $postarr['ID'] ) ) {
 			$existing = get_post( (int) $postarr['ID'] );
 			if ( ! $existing ) {
-				return true;
+				// wp_insert_post() rejects unknown IDs before this filter runs; kept as a safeguard.
+				return true; // @codeCoverageIgnore
 			}
 
 			if ( 'attachment' === $existing->post_type ) {

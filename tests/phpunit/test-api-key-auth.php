@@ -228,9 +228,11 @@ class Test_Api_Key_Auth extends WP_AI_Gatekeeper_TestCase {
 		$this->assertNotEmpty( $first );
 
 		// Pretend the last use was 30 seconds ago: no new write.
-		$this->set_last_used( gmdate( 'Y-m-d H:i:s', time() - 30 ) );
+		// Computed once: two time() calls can straddle a second and differ.
+		$recent = gmdate( 'Y-m-d H:i:s', time() - 30 );
+		$this->set_last_used( $recent );
 		$this->authenticate_with( array( 'HTTP_X_WP_AI_KEY' => $this->ai_api_key ) );
-		$this->assertSame( gmdate( 'Y-m-d H:i:s', time() - 30 ), $this->key_record()['last_used_at'] );
+		$this->assertSame( $recent, $this->key_record()['last_used_at'] );
 
 		// Two minutes ago: updated.
 		$this->set_last_used( gmdate( 'Y-m-d H:i:s', time() - 120 ) );
@@ -338,5 +340,62 @@ class Test_Api_Key_Auth extends WP_AI_Gatekeeper_TestCase {
 			}
 		}
 		update_option( WP_AI_Gatekeeper_Auth::KEYS_OPTION, $keys, false );
+	}
+
+	/**
+	 * Test: a value in X-WP-AI-Key that is not an API key is rejected, not
+	 * ignored, so a typo is reported instead of silently sending anonymous.
+	 */
+	public function test_malformed_custom_header_is_rejected() {
+		$this->assertSame( 0, $this->authenticate_with( array( 'HTTP_X_WP_AI_KEY' => 'not-a-key' ) ) );
+		$this->assertWPError( WP_AI_Gatekeeper_Auth::rest_authentication_errors( null ) );
+	}
+
+	/**
+	 * Test: a damaged key record (no hash) is skipped; valid keys keep working.
+	 */
+	public function test_damaged_key_record_is_skipped() {
+		$keys = get_option( WP_AI_Gatekeeper_Auth::KEYS_OPTION );
+		array_unshift(
+			$keys,
+			array(
+				'id'       => 'damaged',
+				'key_hash' => '',
+			)
+		);
+		update_option( WP_AI_Gatekeeper_Auth::KEYS_OPTION, $keys );
+
+		$this->assertSame( $this->ai_user_id, $this->authenticate_with( array( 'HTTP_X_WP_AI_KEY' => $this->ai_api_key ) ) );
+	}
+
+	/**
+	 * Test: without a request URL (e.g. WP-CLI), the key is not accepted.
+	 */
+	public function test_key_ignored_without_request_url() {
+		$this->assertSame(
+			0,
+			$this->authenticate_with(
+				array(
+					'HTTP_X_WP_AI_KEY' => $this->ai_api_key,
+					'REQUEST_URI'      => '',
+				)
+			)
+		);
+	}
+
+	/**
+	 * Test: when the site's host is not a valid e-mail domain, the AI account
+	 * gets a placeholder address.
+	 */
+	public function test_ai_account_email_fallback() {
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user( $this->ai_user_id );
+		delete_option( WP_AI_Gatekeeper_Auth::DEFAULT_USER_OPTION );
+		update_option( 'home', 'http://localhost' );
+
+		$user_id = WP_AI_Gatekeeper_Auth::ensure_default_ai_user();
+
+		$this->assertSame( 'ai-assistant@example.invalid', get_userdata( $user_id )->user_email );
+		$this->assertFalse( WP_AI_Gatekeeper_Auth::is_ai_user( 999999 ), 'Unknown users are not AI users.' );
 	}
 }

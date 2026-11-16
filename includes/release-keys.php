@@ -10,9 +10,12 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
 return array(
 	// Release key created 2026-11-15; secret key at ~/.config/wp-ai-gatekeeper/release-signing.key (maintainer machine).

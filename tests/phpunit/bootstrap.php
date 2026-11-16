@@ -44,3 +44,4 @@ require "{$_tests_dir}/includes/bootstrap.php";
 
 require_once __DIR__ . '/class-wp-ai-gatekeeper-testcase.php';
 require_once __DIR__ . '/class-wpai-test-redirect.php';
+require_once __DIR__ . '/apache-request-headers.php';

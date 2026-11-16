@@ -200,4 +200,73 @@ class Test_Suggestion_Preview extends WP_AI_Gatekeeper_TestCase {
 	public function test_unknown_suggestion_returns_404() {
 		$this->assertSame( 404, $this->preview( 999999 )->get_status() );
 	}
+
+	/**
+	 * Test: when merged text was edited afterwards, the current article is
+	 * shown with a notice instead of a wrong highlight.
+	 */
+	public function test_edited_merged_text_shows_notice() {
+		$post_id = $this->article();
+		$id      = $this->ai_suggestion( $post_id, 'legacy passwords', 'passkeys' );
+		wp_set_current_user( $this->editor_id );
+		WP_AI_Gatekeeper_Suggestion_Service::merge_suggestion( $id, $this->editor_id );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => str_replace( 'passkeys', 'hardware keys', get_post( $post_id )->post_content ),
+			)
+		);
+
+		$data = $this->preview( $id )->get_data();
+		$this->assertFalse( $data['highlighted'] );
+		$this->assertStringContainsString( 'merged text has been edited', $data['notice'] );
+		$this->assertStringContainsString( 'hardware keys', $data['html'] );
+	}
+
+	/**
+	 * Test: a change that includes markup is highlighted as a whole (word
+	 * boundaries could split tags).
+	 */
+	public function test_markup_change_is_highlighted_as_a_whole() {
+		$post_id = $this->create_editor_post( array( 'post_content' => '<p>Employees use <em>legacy</em> passwords today.</p>' ) );
+		$id      = $this->ai_suggestion( $post_id, '<em>legacy</em> passwords', 'passkeys' );
+
+		$data = $this->preview( $id )->get_data();
+		$this->assertTrue( $data['highlighted'] );
+		$this->assertStringContainsString( '<del class="wpai-diff-word-del"><em>legacy</em> passwords</del><ins class="wpai-diff-word-ins">passkeys</ins>', $data['html'] );
+	}
+
+	/**
+	 * Test: a merged deletion cannot be located afterwards (nothing was
+	 * inserted), so the current article is shown with a notice.
+	 */
+	public function test_merged_deletion_shows_notice() {
+		$post_id = $this->article();
+		$id      = $this->ai_suggestion( $post_id, ' legacy', '' );
+		wp_set_current_user( $this->editor_id );
+		$this->assertIsArray( WP_AI_Gatekeeper_Suggestion_Service::merge_suggestion( $id, $this->editor_id ) );
+
+		$data = $this->preview( $id )->get_data();
+		$this->assertFalse( $data['highlighted'] );
+		$this->assertNotEmpty( $data['notice'] );
+		$this->assertStringContainsString( 'Employees use passwords today.', $data['html'] );
+	}
+
+	/**
+	 * Test: rendering a preview restores the global post afterwards, so the
+	 * page around it (e.g. the post editor) keeps working with its own post.
+	 */
+	public function test_preview_restores_global_post() {
+		global $post;
+		$own  = $this->create_editor_post( array( 'post_title' => 'Page being edited' ) );
+		$post = get_post( $own ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Simulates the editor's post.
+		setup_postdata( $post );
+
+		$id = $this->ai_suggestion( $this->article(), 'legacy passwords', 'passkeys' );
+		$this->preview( $id );
+
+		$this->assertSame( $own, $GLOBALS['post']->ID );
+		$this->assertSame( 'Page being edited', get_the_title() );
+		$post = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Reset.
+	}
 }

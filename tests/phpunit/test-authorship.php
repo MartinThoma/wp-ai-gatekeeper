@@ -193,4 +193,25 @@ class Test_Authorship extends WP_AI_Gatekeeper_TestCase {
 		WP_AI_Gatekeeper_Authorship::render_column( WP_AI_Gatekeeper_Authorship::COLUMN, $post_id );
 		$this->assertStringContainsString( 'AI Editorial Assistant', ob_get_clean() );
 	}
+
+	/**
+	 * Test: the column is added even without an Author column, other columns
+	 * are ignored, unpublished AI drafts show the AI, and human posts show "No".
+	 */
+	public function test_posts_list_column_edge_cases() {
+		$columns = WP_AI_Gatekeeper_Authorship::add_column( array( 'title' => 'Title' ) );
+		$this->assertSame( array( 'title', WP_AI_Gatekeeper_Authorship::COLUMN ), array_keys( $columns ) );
+
+		$render = static function ( $column, $post_id ) {
+			ob_start();
+			WP_AI_Gatekeeper_Authorship::render_column( $column, $post_id );
+			return ob_get_clean();
+		};
+		$draft  = $this->ai_draft();
+		$human  = $this->create_editor_post( array() );
+
+		$this->assertSame( '', $render( 'title', $draft ) );
+		$this->assertStringContainsString( 'AI Editorial Assistant', $render( WP_AI_Gatekeeper_Authorship::COLUMN, $draft ) );
+		$this->assertStringContainsString( 'screen-reader-text">No<', $render( WP_AI_Gatekeeper_Authorship::COLUMN, $human ) );
+	}
 }

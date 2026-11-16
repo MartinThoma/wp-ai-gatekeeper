@@ -5,9 +5,12 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
 /**
  * Manages the restricted AI role and API key authentication.
@@ -251,10 +254,13 @@ class WP_AI_Gatekeeper_Auth {
 		try {
 			$random = bin2hex( random_bytes( 16 ) );
 			$key_id = bin2hex( random_bytes( 8 ) );
+			// @codeCoverageIgnoreStart
 		} catch ( Exception $e ) {
+			// Only if the system has no source of randomness; cannot be triggered in tests.
 			$random = md5( wp_generate_password( 32, true, true ) . microtime( true ) );
 			$key_id = substr( md5( uniqid( '', true ) ), 0, 16 );
 		}
+		// @codeCoverageIgnoreEnd
 
 		$raw_key    = self::KEY_PREFIX . $random;
 		$key_hash   = hash( 'sha256', $raw_key );
@@ -424,8 +430,10 @@ class WP_AI_Gatekeeper_Auth {
 	 * @return bool
 	 */
 	public static function is_rest_request() {
+		// REST_REQUEST cannot be defined in the test process without affecting every
+		// later test; the URL checks below cover the same requests.
 		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-			return true;
+			return true; // @codeCoverageIgnore
 		}
 		if ( empty( $_SERVER['REQUEST_URI'] ) ) {
 			return false;

@@ -10,7 +10,7 @@ coverage improves; lowering it should be a deliberate, reviewed change.
 import sys
 import xml.etree.ElementTree as ET
 
-DEFAULT_MINIMUM = 85.0
+DEFAULT_MINIMUM = 100.0
 
 
 def line_coverage(clover_path: str) -> float:

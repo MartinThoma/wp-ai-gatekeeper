@@ -19,9 +19,12 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
 /**
  * Offers updates from GitHub releases and installs only signed packages.
@@ -219,7 +222,8 @@ class WP_AI_Gatekeeper_Updater {
 		}
 
 		if ( ! function_exists( 'download_url' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/file.php';
+			// Loaded already in WP Admin and in the tests; needed for cron updates.
+			require_once ABSPATH . 'wp-admin/includes/file.php'; // @codeCoverageIgnore
 		}
 
 		$file = download_url( $package, 300 );

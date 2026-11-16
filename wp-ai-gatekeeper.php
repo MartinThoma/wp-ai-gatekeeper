@@ -15,10 +15,16 @@
  * @package WP_AI_Gatekeeper
  */
 
+// @codeCoverageIgnoreStart
+// Only runs when a file is opened directly, never inside WordPress or the tests.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+// @codeCoverageIgnoreEnd
 
+// @codeCoverageIgnoreStart
+// Runs once when WordPress loads the plugin, before any test starts recording
+// coverage. The tests exercise everything these lines set up.
 define( 'WP_AI_GATEKEEPER_VERSION', '1.0.0' );
 define( 'WP_AI_GATEKEEPER_DB_VERSION', '1.0.0' );
 define( 'WP_AI_GATEKEEPER_PLUGIN_FILE', __FILE__ );
@@ -39,6 +45,7 @@ require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-suggestion-service.ph
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/class-rest-controller.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/admin/class-meta-box.php';
 require_once WP_AI_GATEKEEPER_PLUGIN_DIR . 'includes/admin/class-admin-menu.php';
+// @codeCoverageIgnoreEnd
 
 /**
  * Main plugin coordinator singleton.
@@ -59,13 +66,15 @@ final class WP_AI_Gatekeeper {
 	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
-			self::$instance = new self();
+			self::$instance = new self(); // @codeCoverageIgnore
 		}
 		return self::$instance;
 	}
 
 	/**
-	 * Private constructor to wire WordPress hooks.
+	 * Private constructor to wire WordPress hooks. Runs while the plugin loads.
+	 *
+	 * @codeCoverageIgnore
 	 */
 	private function __construct() {
 		add_action( 'plugins_loaded', array( $this, 'on_plugins_loaded' ) );
@@ -145,7 +154,10 @@ final class WP_AI_Gatekeeper {
 	}
 }
 
+// @codeCoverageIgnoreStart
+// Runs when WordPress loads the plugin (see above).
 register_activation_hook( __FILE__, array( 'WP_AI_Gatekeeper', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'WP_AI_Gatekeeper', 'deactivate' ) );
 
 WP_AI_Gatekeeper::instance();
+// @codeCoverageIgnoreEnd
