@@ -7,51 +7,40 @@ regression test; see [how-to-contribute.md](how-to-contribute.md) for running th
 Larger features that are planned but not yet scheduled are listed under
 [Planned Features](#planned-features) at the end.
 
-## Medium
-
-### 1. A stale editor in another tab can still undo a merge
-Merging from inside the editor is now safe (it refuses while there are unsaved changes and
-reloads afterwards). But if the same article is open in another tab or window, or by the same
-user on another device, that editor does not know about the merge, and saving it writes the
-older content back. WordPress's post lock only warns when a *different* user is editing.
-- Options: have the plugin's scripts poll (or use Heartbeat) and warn "This article changed
-  since you opened it"; or reject REST saves whose base is older than the last merge (the block
-  editor sends no base version, so this needs a hidden field or meta).
-
 ## Low
 
-### 2. Admin menu builds up to 100 full suggestions on every admin page load
+### 1. Admin menu builds up to 100 full suggestions on every admin page load
 `register_menus` (`includes/admin/class-admin-menu.php`) calls `get_suggestions` (diffs, comment
 threads, 5 count queries) just to show a badge, for every user on every admin page. The
 `per_page => 200` is clamped to 100, so the badge also caps at 100.
 - Use `WP_AI_Gatekeeper_Database::count_suggestions( array( 'status' => 'open' ) )`.
 
-### 3. Application Passwords are force-enabled for all users in staging
+### 2. Application Passwords are force-enabled for all users in staging
 `allow_application_passwords_in_staging` (`includes/class-auth.php`) enables Application
 Passwords for *every* user over plain HTTP on staging/local/development sites and overrides
 plugins that deliberately disable them. Many "staging" sites are publicly reachable.
 - Limit to `local`/`development`, or to AI users only, or make it an opt-in setting.
   Update `tests/test-plugin-verification.py` and the README to match.
 
-### 4. `allow_ai_read_drafts_in_wp_v2` is dead code
+### 3. `allow_ai_read_drafts_in_wp_v2` is dead code
 Core's `/wp/v2/posts` sets `status` to `publish` by default, so the `empty()` check in
 `includes/class-permissions.php` never passes and the filter never changes the query.
 - Decide the intended behavior (AI sees drafts by default?) and implement it via
   `$request->get_param( 'status' )` against the default, or remove the filter.
 
-### 5. Read policy is inconsistent with what is enforced and documented
+### 4. Read policy is inconsistent with what is enforced and documented
 - The settings page says the AI can read "posts/pages", but `filter_map_meta_cap` denies pages.
 - `read_post` also lets the AI read other authors' `private` and `future` posts, which the
   README's permission matrix does not mention.
 - Decide the policy, then align code, settings page, and README.
 
-### 6. AI key authentication applies to every request, not only REST
+### 5. AI key authentication applies to every request, not only REST
 `determine_current_user` accepts the key on admin-ajax, admin-post, and XML-RPC requests too.
 Capabilities are restricted, but this widens the attack surface unnecessarily.
 - Only honor the AI key for REST requests (e.g. check the request URI against
   `rest_get_url_prefix()`), and add a test that admin-ajax ignores it.
 
-### 7. Cleanup
+### 6. Cleanup
 - `uninstall.php`: nothing can set `wp_ai_gatekeeper_delete_data_on_uninstall`, so tables are
   never dropped; the `ai-assistant` user is left behind with no role. Add the setting (or
   document a WP-CLI way) and decide what happens to the AI user.

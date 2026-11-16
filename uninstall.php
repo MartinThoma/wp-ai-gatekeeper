@@ -23,6 +23,9 @@ delete_option( 'wp_ai_gatekeeper_delete_data_on_uninstall' );
 
 remove_role( 'ai_contributor' );
 
+// Merge counters only matter while the plugin guards the editor.
+delete_post_meta_by_key( '_wpai_merge_count' );
+
 if ( $wp_ai_gatekeeper_delete_data ) {
 	$wp_ai_gatekeeper_suggestions_table = $wpdb->prefix . 'ai_suggestions';
 	$wp_ai_gatekeeper_comments_table    = $wpdb->prefix . 'ai_suggestion_comments';

@@ -227,6 +227,7 @@ When the human clicks **Merge Suggestion** in WP Admin (or calls `POST /wp-json/
 1. The exact text replacement is applied to the target article and a WordPress post revision is recorded.
 2. The suggestion status transitions to `merged` (`is_locked: true`).
 3. **Immutability Guarantee:** Any subsequent attempt by either the AI or a human to edit, comment on, merge, or reject that suggestion returns `409 Conflict` (`suggestion_already_merged`).
+4. **Open editors cannot undo it:** an editor that was opened before the merge (another tab, window, or device) shows a warning, and its saves and autosaves are refused with `409 wpai_stale_editor` instead of writing the older text back. Reload the editor to continue. Saves that do not come from the WordPress editor screens (other plugins, scripts, direct REST calls) are not affected.
 
 ### 6. Publishing an AI Draft: Who Is the Author?
 

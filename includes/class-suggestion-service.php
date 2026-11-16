@@ -437,6 +437,8 @@ class WP_AI_Gatekeeper_Suggestion_Service {
 		if ( is_wp_error( $update_result ) ) {
 			return $update_result;
 		}
+		// Editors opened before this merge may no longer save their older copy.
+		WP_AI_Gatekeeper_Stale_Editor_Guard::record_merge( $post->ID );
 
 		$revisions   = wp_get_post_revisions( $post->ID, array( 'posts_per_page' => 1 ) );
 		$revision_id = 0;
