@@ -416,7 +416,7 @@ class Test_Guardrails extends WP_AI_Gatekeeper_TestCase {
 	// ---------------------------------------------------------------
 
 	/**
-	 * Test: AI may edit/delete only its own attachments and cannot read pages.
+	 * Test: AI may edit/delete only its own attachments, and may read but not edit pages.
 	 */
 	public function test_attachment_and_page_capabilities() {
 		$own     = self::factory()->attachment->create_object( 'a.png', 0, array( 'post_author' => $this->ai_user_id ) );
@@ -428,7 +428,8 @@ class Test_Guardrails extends WP_AI_Gatekeeper_TestCase {
 		$this->assertTrue( current_user_can( 'edit_post', $own ) );
 		$this->assertTrue( current_user_can( 'delete_post', $own ) );
 		$this->assertFalse( current_user_can( 'edit_post', $foreign ) );
-		$this->assertFalse( current_user_can( 'read_post', $page ) );
+		$this->assertTrue( current_user_can( 'read_post', $page ) );
+		$this->assertFalse( current_user_can( 'edit_post', $page ) );
 		$this->assertFalse( current_user_can( 'edit_post', 999999 ) );
 		$this->assertFalse( current_user_can( 'manage_options' ) );
 		$this->assertFalse( current_user_can( 'edit_theme_options' ) );

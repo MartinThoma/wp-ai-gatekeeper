@@ -9,25 +9,13 @@ Larger features that are planned but not yet scheduled are listed under
 
 ## Low
 
-### 1. `allow_ai_read_drafts_in_wp_v2` is dead code
-Core's `/wp/v2/posts` sets `status` to `publish` by default, so the `empty()` check in
-`includes/class-permissions.php` never passes and the filter never changes the query.
-- Decide the intended behavior (AI sees drafts by default?) and implement it via
-  `$request->get_param( 'status' )` against the default, or remove the filter.
-
-### 2. Read policy is inconsistent with what is enforced and documented
-- The settings page says the AI can read "posts/pages", but `filter_map_meta_cap` denies pages.
-- `read_post` also lets the AI read other authors' `private` and `future` posts, which the
-  README's permission matrix does not mention.
-- Decide the policy, then align code, settings page, and README.
-
-### 3. AI key authentication applies to every request, not only REST
+### 1. AI key authentication applies to every request, not only REST
 `determine_current_user` accepts the key on admin-ajax, admin-post, and XML-RPC requests too.
 Capabilities are restricted, but this widens the attack surface unnecessarily.
 - Only honor the AI key for REST requests (e.g. check the request URI against
   `rest_get_url_prefix()`), and add a test that admin-ajax ignores it.
 
-### 4. Cleanup
+### 2. Cleanup
 - `uninstall.php`: nothing can set `wp_ai_gatekeeper_delete_data_on_uninstall`, so tables are
   never dropped; the `ai-assistant` user is left behind with no role. Add the setting (or
   document a WP-CLI way) and decide what happens to the AI user.

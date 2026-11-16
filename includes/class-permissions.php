@@ -58,7 +58,6 @@ class WP_AI_Gatekeeper_Permissions {
 		add_filter( 'user_has_cap', array( __CLASS__, 'filter_user_has_cap' ), 20, 4 );
 		add_filter( 'map_meta_cap', array( __CLASS__, 'filter_map_meta_cap' ), 20, 4 );
 		add_filter( 'rest_pre_dispatch', array( __CLASS__, 'filter_rest_pre_dispatch' ), 10, 3 );
-		add_filter( 'rest_post_query', array( __CLASS__, 'allow_ai_read_drafts_in_wp_v2' ), 10, 2 );
 		add_filter( 'wp_insert_post_data', array( __CLASS__, 'filter_wp_insert_post_data' ), 20, 1 );
 		add_filter( 'wp_insert_post_empty_content', array( __CLASS__, 'block_unauthorized_ai_post_save' ), 20, 2 );
 		add_filter( 'preprocess_comment', array( __CLASS__, 'block_ai_comment_creation' ), 1 );
@@ -108,8 +107,52 @@ class WP_AI_Gatekeeper_Permissions {
 	}
 
 	/**
+	 * Post types the AI may read. Pages are read-only context: suggestions and
+	 * drafts only work on posts.
+	 *
+	 * @var string[]
+	 */
+	const AI_READABLE_TYPES = array( 'post', 'page', 'attachment' );
+
+	/**
+	 * Statuses of other authors' posts the AI may read. Private posts are
+	 * deliberately restricted by their authors, so they are left out.
+	 *
+	 * @var string[]
+	 */
+	const AI_READABLE_STATUSES = array( 'publish', 'draft', 'pending', 'future' );
+
+	/**
+	 * The AI's read policy: published, draft, pending, and scheduled posts and
+	 * pages by any author, never others' private ones. Attachments follow the
+	 * post they belong to; unattached media is readable.
+	 *
+	 * @param WP_Post $post    Post.
+	 * @param int     $user_id AI user ID.
+	 * @return bool
+	 */
+	public static function ai_can_read( WP_Post $post, $user_id ) {
+		if ( 'trash' === $post->post_status || ! in_array( $post->post_type, self::AI_READABLE_TYPES, true ) ) {
+			return false;
+		}
+		if ( (int) $post->post_author === (int) $user_id ) {
+			return true;
+		}
+
+		if ( 'attachment' === $post->post_type ) {
+			$parent = $post->post_parent ? get_post( $post->post_parent ) : null;
+			if ( ! $parent ) {
+				return 'inherit' === $post->post_status;
+			}
+			return 'attachment' !== $parent->post_type && self::ai_can_read( $parent, $user_id );
+		}
+
+		return in_array( $post->post_status, self::AI_READABLE_STATUSES, true );
+	}
+
+	/**
 	 * Enforces fine-grained meta capability rules for AI users:
-	 * - Read all draft & published articles.
+	 * - Read posts and pages by any author unless they are private (see ai_can_read()).
 	 * - Edit/delete ONLY own draft articles and own uploaded attachments.
 	 * - Never publish, unpublish, or moderate/edit comments.
 	 *
@@ -135,13 +178,7 @@ class WP_AI_Gatekeeper_Permissions {
 				return array( 'do_not_allow' );
 			}
 
-			if ( in_array( $post->post_type, array( 'post', 'attachment' ), true )
-				&& in_array( $post->post_status, array( 'publish', 'draft', 'pending', 'private', 'future', 'inherit' ), true )
-			) {
-				return array( 'read' );
-			}
-
-			return array( 'do_not_allow' );
+			return self::ai_can_read( $post, (int) $user_id ) ? array( 'read' ) : array( 'do_not_allow' );
 		}
 
 		if ( in_array( $cap, array( 'edit_post', 'delete_post' ), true ) ) {
@@ -238,26 +275,6 @@ class WP_AI_Gatekeeper_Permissions {
 		}
 
 		return $result;
-	}
-
-	/**
-	 * Allows AI users querying /wp/v2/posts to read both draft and published posts.
-	 *
-	 * @param array           $args    WP_Query arguments.
-	 * @param WP_REST_Request $request REST request.
-	 * @return array
-	 */
-	public static function allow_ai_read_drafts_in_wp_v2( $args, $request ) {
-		if ( ! WP_AI_Gatekeeper_Auth::is_ai_user() ) {
-			return $args;
-		}
-
-		$status_param = $request->get_param( 'status' );
-		if ( empty( $status_param ) ) {
-			$args['post_status'] = array( 'publish', 'draft' );
-		}
-
-		return $args;
 	}
 
 	/**

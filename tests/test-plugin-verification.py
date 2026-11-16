@@ -99,7 +99,7 @@ def test_security_and_capability_hooks():
         "wp_insert_post_data",
         "rest_pre_dispatch",
         "preprocess_comment",
-        "rest_post_query",
+        "AI_READABLE_STATUSES",
         "upload_files",
         "moderate_comments",
         "publish_posts",

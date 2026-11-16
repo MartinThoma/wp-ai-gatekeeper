@@ -571,8 +571,9 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			);
 		}
 
+		// The AI may suggest on any post it can read in full; humans need edit rights.
 		$allowed = WP_AI_Gatekeeper_Auth::is_ai_user()
-			? WP_AI_Gatekeeper_Permissions::can_read_post_content( $post, get_current_user_id() )
+			? current_user_can( 'read_post', $post->ID ) && WP_AI_Gatekeeper_Permissions::can_read_post_content( $post, get_current_user_id() )
 			: current_user_can( 'edit_post', $post->ID );
 		if ( ! $allowed ) {
 			return new WP_Error(

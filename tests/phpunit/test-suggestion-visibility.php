@@ -2,7 +2,8 @@
 /**
  * Tests: humans only see suggestions (and their discussions) on posts they can
  * edit, the same people who may comment on and merge them. The AI sees all
- * except those on password-protected posts (see test-password-protected-posts.php).
+ * except those on private or password-protected posts (see test-ai-read-policy.php
+ * and test-password-protected-posts.php).
  *
  * @package WP_AI_Gatekeeper
  */
@@ -132,14 +133,16 @@ class Test_Suggestion_Visibility extends WP_AI_Gatekeeper_TestCase {
 	}
 
 	/**
-	 * Test: editors and the AI see everything.
+	 * Test: editors see everything; the AI sees everything except suggestions
+	 * on other authors' private posts, which it may not read.
 	 */
 	public function test_editor_and_ai_see_all() {
 		$editor = $this->get_as( $this->editor_id, '/ai-gatekeeper/v1/suggestions', array( 'status' => 'all' ) )->get_data();
 		$this->assertSame( 4, $editor['total'] );
 
 		$ai = $this->get_as( $this->ai_user_id, '/ai-gatekeeper/v1/suggestions', array( 'status' => 'all' ) )->get_data();
-		$this->assertSame( 4, $ai['total'] );
+		$this->assertSame( 3, $ai['total'] );
+		$this->assertNotContains( $this->ids['editor_private'], wp_list_pluck( $ai['items'], 'id' ) );
 	}
 
 	/**

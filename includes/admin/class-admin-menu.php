@@ -307,8 +307,8 @@ class WP_AI_Gatekeeper_Admin_Menu {
 					<h2><?php esc_html_e( 'Active Security Policy (Enforced in Core & REST)', 'wp-ai-gatekeeper' ); ?></h2>
 					<ul class="wpai-policy-list">
 						<li class="wpai-policy-allow">
-							<strong><?php esc_html_e( 'Read All Articles:', 'wp-ai-gatekeeper' ); ?></strong>
-							<?php esc_html_e( 'AI can read all published and draft posts/pages.', 'wp-ai-gatekeeper' ); ?>
+							<strong><?php esc_html_e( 'Read Articles & Pages:', 'wp-ai-gatekeeper' ); ?></strong>
+							<?php esc_html_e( 'AI can read published, draft, pending, and scheduled posts and pages by any author, but not private ones or the text of password-protected ones. Pages are read-only.', 'wp-ai-gatekeeper' ); ?>
 						</li>
 						<li class="wpai-policy-allow">
 							<strong><?php esc_html_e( 'Create & Edit Own Drafts:', 'wp-ai-gatekeeper' ); ?></strong>
