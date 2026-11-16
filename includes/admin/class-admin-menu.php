@@ -25,18 +25,33 @@ class WP_AI_Gatekeeper_Admin_Menu {
 	}
 
 	/**
+	 * Number shown in the menu badge: open suggestions in the user's review
+	 * queue (posts they can edit), with one COUNT query. Zero for users who do
+	 * not get the menu, so nothing is computed for them.
+	 *
+	 * @param int $user_id User ID.
+	 * @return int
+	 */
+	public static function open_badge_count( $user_id ) {
+		if ( ! user_can( $user_id, 'edit_others_posts' ) ) {
+			return 0;
+		}
+
+		return WP_AI_Gatekeeper_Database::count_suggestions(
+			array(
+				'status'   => 'open',
+				'post_ids' => WP_AI_Gatekeeper_Suggestion_Service::visible_post_ids( $user_id ),
+			)
+		);
+	}
+
+	/**
 	 * Register the top-level AI Gatekeeper menu and submenus.
 	 *
 	 * @return void
 	 */
 	public static function register_menus() {
-		$open_suggestions = WP_AI_Gatekeeper_Suggestion_Service::get_suggestions(
-			array(
-				'status'   => 'open',
-				'per_page' => 200,
-			)
-		);
-		$open_count       = count( $open_suggestions );
+		$open_count = self::open_badge_count( get_current_user_id() );
 
 		$menu_title = __( 'AI Gatekeeper', 'wp-ai-gatekeeper' );
 		if ( $open_count > 0 ) {
