@@ -147,6 +147,40 @@
 	}
 
 	/**
+	 * Make the buttons match the reply box. With a comment typed, "Comment" is the
+	 * primary action and Merge / Reject become "Comment & Merge" / "Comment &
+	 * Reject" (they post the comment too). With an empty box, Merge is primary
+	 * and the comment button is disabled.
+	 *
+	 * @param {HTMLElement} card Suggestion card element.
+	 */
+	function syncReplyActions( card ) {
+		const textarea = card.querySelector( '.wpai-comment-input' );
+		if ( ! textarea ) {
+			return;
+		}
+
+		const i18n = config.i18n || {};
+		const hasText = textarea.value.trim() !== '';
+		const commentBtn = card.querySelector( '.wpai-btn-comment' );
+		const mergeBtn = card.querySelector( '.wpai-btn-merge' );
+		const rejectBtn = card.querySelector( '.wpai-btn-reject' );
+
+		if ( commentBtn ) {
+			commentBtn.classList.toggle( 'button-primary', hasText );
+			commentBtn.disabled = ! hasText;
+			commentBtn.textContent = hasText ? ( i18n.comment || 'Comment' ) : ( i18n.addComment || 'Add Comment' );
+		}
+		if ( mergeBtn ) {
+			mergeBtn.classList.toggle( 'button-primary', ! hasText );
+			mergeBtn.textContent = hasText ? ( i18n.commentAndMerge || 'Comment & Merge' ) : ( i18n.merge || 'Merge Suggestion' );
+		}
+		if ( rejectBtn ) {
+			rejectBtn.textContent = hasText ? ( i18n.commentAndReject || 'Comment & Reject' ) : ( i18n.reject || 'Reject' );
+		}
+	}
+
+	/**
 	 * Describe the editor open on this page for the given post, if any.
 	 *
 	 * Merging changes the saved article. An editor holding unsaved changes would
@@ -230,6 +264,15 @@
 	 * Attach delegated event listeners for filter tabs and card actions.
 	 */
 	function initEvents() {
+		document.addEventListener( 'input', function ( event ) {
+			if ( event.target.classList && event.target.classList.contains( 'wpai-comment-input' ) ) {
+				const card = event.target.closest( '.wpai-suggestion-card' );
+				if ( card ) {
+					syncReplyActions( card );
+				}
+			}
+		} );
+
 		document.addEventListener( 'click', async function ( event ) {
 			// Filter buttons inside meta box.
 			const filterBtn = event.target.closest( '.wpai-filter-btn' );
@@ -294,7 +337,7 @@
 				} catch ( err ) {
 					setCardFeedback( card, err.message, true );
 				} finally {
-					commentBtn.disabled = false;
+					syncReplyActions( card );
 				}
 				return;
 			}
@@ -387,6 +430,7 @@
 						textarea.value = '';
 					}
 					updateCardState( card, updated );
+					syncReplyActions( card );
 					setCardFeedback( card, 'Suggestion rejected.', false );
 				} catch ( err ) {
 					setCardFeedback( card, err.message, true );

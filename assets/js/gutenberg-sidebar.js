@@ -56,6 +56,9 @@
 		const [ notice, setNotice ] = useState( '' );
 
 		const isLocked = suggestion.is_locked || suggestion.status === 'merged';
+		// With a comment typed, "Comment" is the primary action; Merge / Reject
+		// still work and post the comment along with the decision.
+		const hasReply = replyText.trim() !== '';
 
 		async function handleComment() {
 			if ( ! replyText.trim() ) {
@@ -185,12 +188,12 @@
 						el(
 							Button,
 							{
-								variant: 'secondary',
+								variant: hasReply ? 'primary' : 'secondary',
 								isSmall: true,
-								disabled: busy,
+								disabled: busy || ! hasReply,
 								onClick: handleComment,
 							},
-							'Comment'
+							i18n.comment || 'Comment'
 						),
 						suggestion.status === 'open'
 							? el(
@@ -199,12 +202,12 @@
 								el(
 									Button,
 									{
-										variant: 'primary',
+										variant: hasReply ? 'secondary' : 'primary',
 										isSmall: true,
 										disabled: busy,
 										onClick: handleMerge,
 									},
-									'Merge'
+									hasReply ? ( i18n.commentAndMerge || 'Comment & Merge' ) : ( i18n.mergeShort || 'Merge' )
 								),
 								el(
 									Button,
@@ -214,7 +217,7 @@
 										disabled: busy,
 										onClick: handleReject,
 									},
-									'Reject'
+									hasReply ? ( i18n.commentAndReject || 'Comment & Reject' ) : ( i18n.reject || 'Reject' )
 								)
 							)
 							: null

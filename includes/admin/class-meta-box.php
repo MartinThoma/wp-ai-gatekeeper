@@ -154,6 +154,13 @@ class WP_AI_Gatekeeper_Meta_Box {
 				'loadingArticle'     => __( 'Loading article…', 'wp-ai-gatekeeper' ),
 				'saveBeforeMerge'    => __( 'You have unsaved changes. Save the post first, then merge: merging changes the saved article, and saving your older version afterwards would undo the merge.', 'wp-ai-gatekeeper' ),
 				'mergedReloading'    => __( 'Merged. Reloading the editor to show the updated article…', 'wp-ai-gatekeeper' ),
+				'addComment'         => __( 'Add Comment', 'wp-ai-gatekeeper' ),
+				'comment'            => __( 'Comment', 'wp-ai-gatekeeper' ),
+				'merge'              => __( 'Merge Suggestion', 'wp-ai-gatekeeper' ),
+				'mergeShort'         => __( 'Merge', 'wp-ai-gatekeeper' ),
+				'reject'             => __( 'Reject', 'wp-ai-gatekeeper' ),
+				'commentAndMerge'    => __( 'Comment & Merge', 'wp-ai-gatekeeper' ),
+				'commentAndReject'   => __( 'Comment & Reject', 'wp-ai-gatekeeper' ),
 			),
 		);
 	}
@@ -358,7 +365,7 @@ class WP_AI_Gatekeeper_Meta_Box {
 							rows="2"
 							placeholder="<?php esc_attr_e( 'Add a comment or ask the AI to refine this suggestion...', 'wp-ai-gatekeeper' ); ?>"></textarea>
 						<div class="wpai-card-actions">
-							<button type="button" class="button wpai-btn-comment">
+							<button type="button" class="button wpai-btn-comment" disabled>
 								<?php esc_html_e( 'Add Comment', 'wp-ai-gatekeeper' ); ?>
 							</button>
 
