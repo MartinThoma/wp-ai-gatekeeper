@@ -651,8 +651,11 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			'post_status'    => $post_status,
 			'posts_per_page' => $per_page,
 			'paged'          => $page,
-			'orderby'        => 'modified',
-			'order'          => 'DESC',
+			// ID breaks ties, so posts modified in the same second keep a stable order across pages.
+			'orderby'        => array(
+				'modified' => 'DESC',
+				'ID'       => 'DESC',
+			),
 		);
 
 		$search = $request->get_param( 'search' );
@@ -660,32 +663,25 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			$query_args['s'] = sanitize_text_field( $search );
 		}
 
-		// WordPress hides password-protected posts from searches only for logged-out
-		// visitors. Here every caller is logged in, so a search would reveal whether
-		// hidden content contains a phrase. Only search protected posts the caller
-		// may read in full (approximated by authorship for users who cannot edit
-		// others' posts).
-		$restrict_search = static function ( $search_sql ) {
-			global $wpdb;
-			if ( '' === $search_sql ) {
-				return $search_sql;
-			}
-			return $search_sql . $wpdb->prepare( " AND ( {$wpdb->posts}.post_password = '' OR {$wpdb->posts}.post_author = %d ) ", get_current_user_id() );
-		};
-		$restricting     = ! empty( $query_args['s'] ) && ! current_user_can( 'edit_others_posts' );
-		if ( $restricting ) {
-			add_filter( 'posts_search', $restrict_search );
-		}
-
 		$author = $request->get_param( 'author' );
 		if ( ! empty( $author ) ) {
 			$query_args['author'] = absint( $author );
 		}
 
-		$query = new WP_Query( $query_args );
-		if ( $restricting ) {
-			remove_filter( 'posts_search', $restrict_search );
+		// Restrict the query itself to posts the caller may read, so that `total`
+		// and `total_pages` do not count (and reveal) posts dropped afterwards.
+		$restriction = $this->readable_posts_sql( ! empty( $query_args['s'] ) );
+		$add_where   = static function ( $where ) use ( $restriction ) {
+			return $where . $restriction;
+		};
+		if ( '' !== $restriction ) {
+			add_filter( 'posts_where', $add_where );
 		}
+		$query = new WP_Query( $query_args );
+		if ( '' !== $restriction ) {
+			remove_filter( 'posts_where', $add_where );
+		}
+
 		$posts    = $query->posts;
 		$post_ids = wp_list_pluck( $posts, 'ID' );
 		$counts   = WP_AI_Gatekeeper_Database::get_open_counts_by_post( $post_ids );
@@ -707,6 +703,38 @@ class WP_AI_Gatekeeper_REST_Controller extends WP_REST_Controller {
 			),
 			200
 		);
+	}
+
+	/**
+	 * SQL appended to the post list's WHERE clause so the query only matches
+	 * posts the current user may read (read_post), in the same way the
+	 * per-post check does afterwards:
+	 * - Drafts: users who cannot edit others' posts only see their own. The AI
+	 *   is exempt; by design it reads every draft.
+	 * - Search: WordPress excludes password-protected posts from searches only
+	 *   for logged-out visitors. Every caller here is logged in, so a search
+	 *   would reveal whether hidden content contains a phrase. Protected posts
+	 *   are only searched for users who can edit others' posts, or their own.
+	 *
+	 * @param bool $is_search Whether the query searches.
+	 * @return string SQL starting with " AND", or '' for no restriction.
+	 */
+	private function readable_posts_sql( $is_search ) {
+		global $wpdb;
+
+		if ( current_user_can( 'edit_others_posts' ) ) {
+			return '';
+		}
+
+		$user_id = get_current_user_id();
+		$sql     = '';
+		if ( ! WP_AI_Gatekeeper_Auth::is_ai_user() ) {
+			$sql .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_status = 'publish' OR {$wpdb->posts}.post_author = %d )", $user_id );
+		}
+		if ( $is_search ) {
+			$sql .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_password = '' OR {$wpdb->posts}.post_author = %d )", $user_id );
+		}
+		return $sql;
 	}
 
 	/**

@@ -9,17 +9,7 @@ Larger features that are planned but not yet scheduled are listed under
 
 ## Medium
 
-### 1. Searching drafts reveals other people's draft text through `total`
-`GET /ai-gatekeeper/v1/posts?status=draft&search=…` runs the search over every draft and only
-afterwards drops posts the caller may not read (`read_post`). `items` is filtered, but `total`
-and `total_pages` still count the hidden matches, so even a Subscriber can test whether someone
-else's draft contains a phrase (verified: `items=0 total=1`). The same applies to `private`
-posts and to the counts without a search.
-- Restrict the query itself (statuses and authors the caller may read) instead of filtering
-  afterwards, so `total` matches `items`. Keep the AI's intended read access (see #6).
-- Add a test that a Subscriber's draft search returns `total: 0`.
-
-### 2. A stale editor in another tab can still undo a merge
+### 1. A stale editor in another tab can still undo a merge
 Merging from inside the editor is now safe (it refuses while there are unsaved changes and
 reloads afterwards). But if the same article is open in another tab or window, or by the same
 user on another device, that editor does not know about the merge, and saving it writes the
@@ -27,6 +17,30 @@ older content back. WordPress's post lock only warns when a *different* user is 
 - Options: have the plugin's scripts poll (or use Heartbeat) and warn "This article changed
   since you opened it"; or reject REST saves whose base is older than the last merge (the block
   editor sends no base version, so this needs a hidden field or meta).
+
+### 2. Suggestions with block comments are silently changed on submit
+`WP_AI_Gatekeeper_Markup_Guard::sanitize()` runs `wp_kses()` on the suggested text alone. Core
+hooks `wp_pre_kses_block_attributes` into `pre_kses`, which runs `filter_block_content()`
+(`parse_blocks()` + `serialize_blocks()`) on that fragment. The serializer closes every block
+that is still open *within the fragment*, without knowing that the original text, or the content
+around it, already handles it. Seen in practice:
+- `original_text` = `<!-- wp:heading -->\n<h2>TOP5 …</h2>` (the opener plus the heading; the
+  `<!-- /wp:heading -->` follows after the matched span).
+- `suggested_text` = new paragraph/heading/list blocks followed by the same opener plus `<h2>`.
+- Stored `suggested_text` gained a trailing `<!-- /wp:heading -->` right after `</h2>`. After the
+  merge, the post had two `<!-- /wp:heading -->` in a row.
+  The page renders fine, but the block structure is broken.
+
+The API returns 201 and nothing tells the agent that its text was changed. A stray closer at the
+start of a fragment (or an opener whose closer is outside it) is probably mangled the same way.
+- Sanitize in context: apply the replacement to the full field content and run kses on the
+  result, or compare the block-comment balance before/after and keep the author's comments.
+- If the text still changes, reject with a clear 422 (e.g. `suggestion_block_structure`) instead
+  of storing something different from what was submitted. At minimum, flag the difference in the
+  response.
+- Add a regression test: a suggestion whose `original_text` starts with an opener and whose
+  `suggested_text` inserts blocks before that opener. Its stored text must equal the input, and
+  merging must keep the block comments balanced.
 
 ## Low
 
