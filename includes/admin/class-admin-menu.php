@@ -15,6 +15,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WP_AI_Gatekeeper_Admin_Menu {
 
 	/**
+	 * Option read by uninstall.php: delete suggestions and AI records too.
+	 */
+	const DELETE_DATA_OPTION = 'wp_ai_gatekeeper_delete_data_on_uninstall';
+
+	/**
 	 * Initialize admin menu and form handlers.
 	 *
 	 * @return void
@@ -144,6 +149,12 @@ class WP_AI_Gatekeeper_Admin_Menu {
 			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=settings_saved' ) );
 			exit;
 		}
+
+		if ( 'save_uninstall' === $action ) {
+			update_option( self::DELETE_DATA_OPTION, ! empty( $_POST['delete_data_on_uninstall'] ), false );
+			wp_safe_redirect( admin_url( 'admin.php?page=wp-ai-gatekeeper-settings&updated=uninstall_saved' ) );
+			exit;
+		}
 	}
 
 	/**
@@ -247,7 +258,7 @@ class WP_AI_Gatekeeper_Admin_Menu {
 				'role' => WP_AI_Gatekeeper_Auth::ROLE_SLUG,
 			)
 		);
-		$default_ai_user_id = WP_AI_Gatekeeper_Auth::ensure_default_ai_user();
+		$default_ai_user_id = WP_AI_Gatekeeper_Auth::find_default_ai_user(); // Never creates anything on a page view.
 		?>
 		<div class="wrap wpai-admin-wrap">
 			<h1><?php esc_html_e( 'AI Gatekeeper — API Keys & Enterprise Guardrails', 'wp-ai-gatekeeper' ); ?></h1>
@@ -272,6 +283,11 @@ class WP_AI_Gatekeeper_Admin_Menu {
 					<p class="description">
 						<?php esc_html_e( 'Each API key authenticates requests as a restricted AI Gatekeeper Agent user.', 'wp-ai-gatekeeper' ); ?>
 					</p>
+					<?php if ( empty( $ai_users ) ) : ?>
+						<div class="notice notice-warning inline">
+							<p><?php esc_html_e( 'There is no AI service account yet. Create it with "Re-Sync AI Role & Service Account" below, then generate a key.', 'wp-ai-gatekeeper' ); ?></p>
+						</div>
+					<?php endif; ?>
 					<form method="post" action="">
 						<?php wp_nonce_field( 'wpai_settings_action', 'wpai_settings_nonce' ); ?>
 						<input type="hidden" name="wpai_action" value="create_key" />
@@ -299,7 +315,7 @@ class WP_AI_Gatekeeper_Admin_Menu {
 								</td>
 							</tr>
 						</table>
-						<?php submit_button( __( 'Generate API Key', 'wp-ai-gatekeeper' ) ); ?>
+						<?php submit_button( __( 'Generate API Key', 'wp-ai-gatekeeper' ), 'primary', 'submit', true, empty( $ai_users ) ? array( 'disabled' => 'disabled' ) : null ); ?>
 					</form>
 				</div>
 
@@ -358,6 +374,27 @@ class WP_AI_Gatekeeper_Admin_Menu {
 						</p>
 						<p class="description">
 							<?php esc_html_e( 'The AI stays recorded as "Drafted by AI" in the posts list and the API, but not on the public site. For scheduled posts, the person who scheduled the post becomes the author.', 'wp-ai-gatekeeper' ); ?>
+						</p>
+						<?php submit_button( __( 'Save', 'wp-ai-gatekeeper' ), 'secondary', 'submit', false ); ?>
+					</form>
+				</div>
+
+				<div class="wpai-settings-card">
+					<h2><?php esc_html_e( 'Uninstall', 'wp-ai-gatekeeper' ); ?></h2>
+					<?php if ( isset( $_GET['updated'] ) && 'uninstall_saved' === $_GET['updated'] ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display only. ?>
+						<div class="notice notice-success inline"><p><?php esc_html_e( 'Settings saved.', 'wp-ai-gatekeeper' ); ?></p></div>
+					<?php endif; ?>
+					<p class="description">
+						<?php esc_html_e( 'Deleting the plugin always removes its settings, API keys, the AI role, and the AI account\'s Application Passwords. Merged changes are part of your posts and stay. The AI service account is kept, because it may be the author of posts; delete it under Users if you no longer need it.', 'wp-ai-gatekeeper' ); ?>
+					</p>
+					<form method="post" action="">
+						<?php wp_nonce_field( 'wpai_settings_action', 'wpai_settings_nonce' ); ?>
+						<input type="hidden" name="wpai_action" value="save_uninstall" />
+						<p>
+							<label>
+								<input type="checkbox" name="delete_data_on_uninstall" value="1" <?php checked( (bool) get_option( self::DELETE_DATA_OPTION, false ) ); ?> />
+								<?php esc_html_e( 'Also delete all suggestions, their discussions, and the "Drafted by AI" records when the plugin is deleted', 'wp-ai-gatekeeper' ); ?>
+							</label>
 						</p>
 						<?php submit_button( __( 'Save', 'wp-ai-gatekeeper' ), 'secondary', 'submit', false ); ?>
 					</form>

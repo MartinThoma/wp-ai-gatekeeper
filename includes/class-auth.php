@@ -141,8 +141,8 @@ class WP_AI_Gatekeeper_Auth {
 	 * Never changes the role of an existing user: set_role() strips all other
 	 * roles, so re-roling a user who happens to be called "ai-assistant" would
 	 * demote an administrator, and re-roling the AI account would undo an
-	 * admin's deliberate change. Runs on activation, re-sync, and every view of
-	 * the settings page, so this must be safe to call repeatedly.
+	 * admin's deliberate change. Runs on activation, re-sync, and when a key
+	 * is created, so this must be safe to call repeatedly.
 	 *
 	 * Order: the configured account if it still has the AI role; else the
 	 * oldest account with the AI role; else a new account under the first free
@@ -153,24 +153,12 @@ class WP_AI_Gatekeeper_Auth {
 	public static function ensure_default_ai_user() {
 		self::register_role();
 
-		$stored_id = (int) get_option( self::DEFAULT_USER_OPTION, 0 );
-		if ( $stored_id > 0 && self::is_ai_user( $stored_id ) ) {
-			return $stored_id;
-		}
-
-		$existing = get_users(
-			array(
-				'role'    => self::ROLE_SLUG,
-				'orderby' => 'ID',
-				'order'   => 'ASC',
-				'number'  => 1,
-				'fields'  => 'ID',
-			)
-		);
-		if ( ! empty( $existing ) ) {
-			$user_id = (int) $existing[0];
-			update_option( self::DEFAULT_USER_OPTION, $user_id );
-			return $user_id;
+		$found = self::find_default_ai_user();
+		if ( $found > 0 ) {
+			if ( (int) get_option( self::DEFAULT_USER_OPTION, 0 ) !== $found ) {
+				update_option( self::DEFAULT_USER_OPTION, $found );
+			}
+			return $found;
 		}
 
 		$login  = self::DEFAULT_LOGIN;
@@ -204,6 +192,31 @@ class WP_AI_Gatekeeper_Auth {
 
 		update_option( self::DEFAULT_USER_OPTION, (int) $user_id );
 		return (int) $user_id;
+	}
+
+	/**
+	 * Finds the default AI service account without creating or storing
+	 * anything (safe on page views): the configured account if it still has
+	 * the AI role, else the oldest account with the AI role.
+	 *
+	 * @return int User ID, or 0 if there is none.
+	 */
+	public static function find_default_ai_user() {
+		$stored_id = (int) get_option( self::DEFAULT_USER_OPTION, 0 );
+		if ( $stored_id > 0 && self::is_ai_user( $stored_id ) ) {
+			return $stored_id;
+		}
+
+		$existing = get_users(
+			array(
+				'role'    => self::ROLE_SLUG,
+				'orderby' => 'ID',
+				'order'   => 'ASC',
+				'number'  => 1,
+				'fields'  => 'ID',
+			)
+		);
+		return empty( $existing ) ? 0 : (int) $existing[0];
 	}
 
 	/**
@@ -557,20 +570,6 @@ class WP_AI_Gatekeeper_Auth {
 	}
 
 	/**
-	 * Checks whether a given (or current) user is a human reviewer able to edit posts.
-	 *
-	 * @param int|null $user_id Optional user ID.
-	 * @return bool
-	 */
-	public static function is_human_reviewer( $user_id = null ) {
-		$uid = null === $user_id ? get_current_user_id() : (int) $user_id;
-		if ( $uid <= 0 || self::is_ai_user( $uid ) ) {
-			return false;
-		}
-		return user_can( $uid, 'edit_posts' );
-	}
-
-	/**
 	 * Alias for is_ai_user() for checking if current request is by an AI agent.
 	 *
 	 * @return bool
@@ -588,14 +587,5 @@ class WP_AI_Gatekeeper_Auth {
 	 */
 	public static function create_api_key( $name, $user_id = 0 ) {
 		return self::generate_api_key( $name, $user_id );
-	}
-
-	/**
-	 * Alias for list_api_keys().
-	 *
-	 * @return array
-	 */
-	public static function get_api_keys() {
-		return self::list_api_keys();
 	}
 }

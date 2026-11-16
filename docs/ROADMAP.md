@@ -7,20 +7,6 @@ regression test; see [how-to-contribute.md](how-to-contribute.md) for running th
 Larger features that are planned but not yet scheduled are listed under
 [Planned Features](#planned-features) at the end.
 
-## Low
-
-### 1. Cleanup
-- `uninstall.php`: nothing can set `wp_ai_gatekeeper_delete_data_on_uninstall`, so tables are
-  never dropped; the `ai-assistant` user is left behind with no role. Add the setting (or
-  document a WP-CLI way) and decide what happens to the AI user.
-- Post meta `_wpai_drafted_by` / `_wpai_scheduled_by` stays after uninstall. Keeping the
-  "drafted by AI" record is probably right; decide and document it.
-- Unused code (found via `make coverage`): `WP_AI_Gatekeeper_Diff::compute_line_diff()`,
-  `WP_AI_Gatekeeper_Auth::is_human_reviewer()`, and `WP_AI_Gatekeeper_Auth::get_api_keys()`.
-  Remove them, or use them.
-- `render_settings_page` creates the AI user as a side effect of a GET; move that to an
-  explicit action.
-
 ## Release Process
 
 ### Release by merging a "REL: v1.2.3" commit

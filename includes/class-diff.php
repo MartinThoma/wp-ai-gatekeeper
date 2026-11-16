@@ -67,52 +67,6 @@ class WP_AI_Gatekeeper_Diff {
 	}
 
 	/**
-	 * Computes line-level diff entries for unified line displays.
-	 *
-	 * @param string $original  Original text.
-	 * @param string $suggested Proposed text.
-	 * @return array<int, array{type: string, old_line: int|null, new_line: int|null, text: string}>
-	 */
-	public static function compute_line_diff( $original, $suggested ) {
-		$old_norm  = str_replace( array( "\r\n", "\r" ), "\n", (string) $original );
-		$new_norm  = str_replace( array( "\r\n", "\r" ), "\n", (string) $suggested );
-		$old_lines = '' === $old_norm ? array() : explode( "\n", $old_norm );
-		$new_lines = '' === $new_norm ? array() : explode( "\n", $new_norm );
-
-		$ops     = self::diff_token_arrays( $old_lines, $new_lines );
-		$result  = array();
-		$old_num = 1;
-		$new_num = 1;
-
-		foreach ( $ops as $op ) {
-			if ( 'equal' === $op['type'] ) {
-				$result[] = array(
-					'type'     => 'context',
-					'old_line' => $old_num++,
-					'new_line' => $new_num++,
-					'text'     => $op['text'],
-				);
-			} elseif ( 'delete' === $op['type'] ) {
-				$result[] = array(
-					'type'     => 'del',
-					'old_line' => $old_num++,
-					'new_line' => null,
-					'text'     => $op['text'],
-				);
-			} else {
-				$result[] = array(
-					'type'     => 'add',
-					'old_line' => null,
-					'new_line' => $new_num++,
-					'text'     => $op['text'],
-				);
-			}
-		}
-
-		return $result;
-	}
-
-	/**
 	 * Computes LCS diff operations over two string arrays with prefix/suffix trimming.
 	 *
 	 * @param string[] $old_tokens Original tokens.

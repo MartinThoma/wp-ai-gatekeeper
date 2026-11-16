@@ -161,6 +161,49 @@ class Test_Admin extends WP_AI_Gatekeeper_TestCase {
 	}
 
 	/**
+	 * Test: "delete all plugin data on uninstall" is off by default and can be
+	 * turned on and off.
+	 */
+	public function test_save_uninstall_setting() {
+		wp_set_current_user( $this->admin_id );
+		$this->assertFalse( (bool) get_option( WP_AI_Gatekeeper_Admin_Menu::DELETE_DATA_OPTION, false ) );
+
+		$location = $this->submit(
+			array(
+				'wpai_action'              => 'save_uninstall',
+				'delete_data_on_uninstall' => '1',
+			)
+		);
+		$this->assertStringContainsString( 'uninstall_saved', $location );
+		$this->assertTrue( (bool) get_option( WP_AI_Gatekeeper_Admin_Menu::DELETE_DATA_OPTION ) );
+
+		$this->submit( array( 'wpai_action' => 'save_uninstall' ) );
+		$this->assertFalse( (bool) get_option( WP_AI_Gatekeeper_Admin_Menu::DELETE_DATA_OPTION ) );
+	}
+
+	/**
+	 * Test: viewing the settings page never creates the AI account; without
+	 * one, it explains how to create it and disables key generation.
+	 */
+	public function test_settings_page_does_not_create_ai_user() {
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user( $this->ai_user_id );
+		delete_option( WP_AI_Gatekeeper_Auth::DEFAULT_USER_OPTION );
+		wp_set_current_user( $this->admin_id );
+
+		$page = $this->render( array( 'WP_AI_Gatekeeper_Admin_Menu', 'render_settings_page' ) );
+
+		$this->assertSame( array(), get_users( array( 'role' => WP_AI_Gatekeeper_Auth::ROLE_SLUG ) ) );
+		$this->assertFalse( get_option( WP_AI_Gatekeeper_Auth::DEFAULT_USER_OPTION ) );
+		$this->assertStringContainsString( 'There is no AI service account yet.', $page );
+		$this->assertMatchesRegularExpression( '/<input[^>]*value="Generate API Key"[^>]*disabled|<input[^>]*disabled[^>]*value="Generate API Key"/', $page );
+
+		// The explicit action creates it.
+		$this->submit( array( 'wpai_action' => 'sync_ai_user' ) );
+		$this->assertCount( 1, get_users( array( 'role' => WP_AI_Gatekeeper_Auth::ROLE_SLUG ) ) );
+	}
+
+	/**
 	 * Test: re-sync recreates the AI role.
 	 */
 	public function test_sync_ai_user() {

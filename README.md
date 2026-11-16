@@ -106,6 +106,22 @@ How it works and why it is safe:
 - After an update, the plugin re-applies the AI role's permissions, so security fixes to what
   the AI may do take effect without reactivating.
 
+## Uninstalling
+
+Deactivating changes nothing permanent. **Deleting** the plugin in WP Admin (or
+`wp plugin uninstall wp-ai-gatekeeper --deactivate`):
+
+- **Always removes** its settings, API keys, the AI role, the Application Passwords of AI
+  accounts, and internal bookkeeping.
+- **Keeps your articles as they are:** merged suggestions are ordinary post content and
+  revisions. Published posts do not depend on the plugin.
+- **Keeps** suggestions with their discussions and the "Drafted by AI" record on posts, unless
+  you enable **AI Gatekeeper → API Keys & Settings → Uninstall → Also delete all suggestions…**
+  before deleting the plugin.
+- **Never deletes the AI service account** (`ai-assistant`), because it may be the author of
+  posts. Without its role and passwords it can do nothing; delete it under **Users** if you no
+  longer need it, and choose there who gets its posts.
+
 ---
 
 ## Authentication
