@@ -69,20 +69,6 @@ class WP_AI_Gatekeeper_Auth {
 		add_action( 'init', array( __CLASS__, 'register_role' ) );
 		add_filter( 'determine_current_user', array( __CLASS__, 'determine_current_user' ), 20 );
 		add_filter( 'rest_authentication_errors', array( __CLASS__, 'rest_authentication_errors' ), 20 );
-		add_filter( 'wp_is_application_passwords_available', array( __CLASS__, 'allow_application_passwords_in_staging' ) );
-	}
-
-	/**
-	 * Enables Application Passwords in staging/local/development environments even over HTTP.
-	 *
-	 * @param bool $available Default availability.
-	 * @return bool
-	 */
-	public static function allow_application_passwords_in_staging( $available ) {
-		if ( function_exists( 'wp_get_environment_type' ) && in_array( wp_get_environment_type(), array( 'staging', 'local', 'development' ), true ) ) {
-			return true;
-		}
-		return $available;
 	}
 
 	/**

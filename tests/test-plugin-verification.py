@@ -7,7 +7,7 @@ Verifies:
 2. Zero stale references to the old `WP_Controlled_AI` or `wp-controlled-ai` naming remain.
 3. Balanced delimiters and valid structure across all PHP, JS, and CSS files.
 4. Presence of all core security capability hooks, REST routes, DB schema tables,
-   staging Application Passwords configuration, Makefile targets, and README Roadmap.
+   the local Docker environment type, Makefile targets, and README Roadmap.
 """
 
 import os
@@ -121,14 +121,15 @@ def test_suggestion_workflow_and_immutability():
         assert route in rest, f"Missing route '{route}' in class-rest-controller.php"
 
 
-def test_staging_application_passwords_and_docker():
+def test_local_environment_and_docker():
     compose = read_file("docker-compose.yml")
-    assert "define( 'WP_ENVIRONMENT_TYPE', 'staging' );" in compose
+    # "local" is what lets WordPress itself allow Application Passwords over HTTP.
+    assert "define( 'WP_ENVIRONMENT_TYPE', 'local' );" in compose
     assert "wp-ai-gatekeeper" in compose
 
+    # The plugin must not override WordPress's Application Passwords decision.
     auth = read_file("includes/class-auth.php")
-    assert "wp_is_application_passwords_available" in auth
-    assert "'staging'" in auth
+    assert "wp_is_application_passwords_available" not in auth
 
 
 def test_makefile_and_ci_and_roadmap():
@@ -156,7 +157,7 @@ if __name__ == "__main__":
         test_php_files_structure,
         test_security_and_capability_hooks,
         test_suggestion_workflow_and_immutability,
-        test_staging_application_passwords_and_docker,
+        test_local_environment_and_docker,
         test_makefile_and_ci_and_roadmap,
     ]
     for test_fn in tests:

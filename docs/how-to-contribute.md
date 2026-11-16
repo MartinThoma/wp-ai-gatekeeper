@@ -15,7 +15,7 @@ This starts:
 - **MariaDB 10.11**
 - **WordPress** (`wordpress:latest`) at `http://localhost:8080`, with this checkout mounted as
   the `wp-ai-gatekeeper` plugin (edits apply immediately). The site runs with
-  `WP_ENVIRONMENT_TYPE` set to `staging`, so Application Passwords work over plain HTTP.
+  `WP_ENVIRONMENT_TYPE` set to `local`, so WordPress allows Application Passwords over plain HTTP.
 - **WP-CLI** that installs WordPress on first start and activates the plugin. Activation creates
   the restricted `ai-assistant` service account.
 

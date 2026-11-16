@@ -121,8 +121,8 @@ AI agents can authenticate using any of the following methods:
    ```
 3. **WordPress Application Password (HTTP Basic Auth):**
    Authenticate as the `ai-assistant` user (or any user assigned the `ai_contributor` role).
-   WordPress requires HTTPS for Application Passwords; on `local`, `development`, and `staging`
-   sites the plugin also allows them over HTTP.
+   WordPress only offers Application Passwords over HTTPS, or on sites whose environment type
+   is `local`. The plugin does not change that; the API key above works either way.
 
 ---
 

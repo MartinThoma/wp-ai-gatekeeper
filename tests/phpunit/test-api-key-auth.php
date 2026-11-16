@@ -203,11 +203,17 @@ class Test_Api_Key_Auth extends WP_AI_Gatekeeper_TestCase {
 	}
 
 	/**
-	 * Test: Application Passwords availability is passed through outside staging-like environments.
+	 * Test: the plugin leaves WordPress's Application Passwords decision alone,
+	 * including a site or plugin that switched them off.
 	 */
-	public function test_application_passwords_passthrough_in_production() {
-		$this->assertSame( 'production', wp_get_environment_type(), 'Precondition: test suite runs as production.' );
-		$this->assertFalse( WP_AI_Gatekeeper_Auth::allow_application_passwords_in_staging( false ) );
+	public function test_application_passwords_decision_is_not_overridden() {
+		$this->assertFalse( has_filter( 'wp_is_application_passwords_available' ) );
+
+		add_filter( 'wp_is_application_passwords_available', '__return_false' );
+		$this->assertFalse( wp_is_application_passwords_available() );
+		remove_filter( 'wp_is_application_passwords_available', '__return_false' );
+
+		$this->assertSame( wp_is_application_passwords_supported(), wp_is_application_passwords_available() );
 	}
 
 	/**
